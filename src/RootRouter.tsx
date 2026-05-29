@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import App from './App.tsx';
 import LandingPage from './pages/LandingPage.tsx';
 
@@ -26,8 +27,18 @@ export default function RootRouter() {
   };
 
   if (path === '/app' || path.startsWith('/app/')) {
-    return <App />;
+    return (
+      <>
+        <App />
+        <Analytics />
+      </>
+    );
   }
 
-  return <LandingPage onStart={() => navigateTo('/app')} />;
+  return (
+    <>
+      <LandingPage onStart={() => navigateTo('/app')} />
+      <Analytics />
+    </>
+  );
 }
