@@ -6,9 +6,24 @@
       "permanent": true
     }
   ],
+  "headers": [
+    {
+      "source": "/app-debug.apk",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/vnd.android.package-archive"
+        },
+        {
+          "key": "Content-Disposition",
+          "value": "attachment; filename=\"AnimaStage-Lite-1.2.3-portrait.apk\""
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
-      "source": "/((?!privacy-policy\\.html|privacy|app-debug\\.apk|sitemap\\.xml|robots\\.txt|studio-screenshot\\.png|.*\\.(png|jpg|jpeg|webp|svg|ico|apk|xml|txt|html|json|js|css|woff2?)).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]
