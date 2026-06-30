@@ -17,7 +17,7 @@ function notify(): void {
 
 export function setAssetLoading(active: boolean, msg = ''): void {
   loading = active;
-  message = active ? msg || 'Прогрев шейдеров и текстур…' : '';
+  message = active ? msg || 'Warming up shaders and textures…' : '';
   notify();
 }
 

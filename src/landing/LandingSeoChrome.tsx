@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { Play } from 'lucide-react';
-import { BRAND_TAGLINE, LITE_AUTHOR, OFFICIAL_PROJECT, PRO_AUTHOR, SEO_LANDING_ROUTES } from './officialProject';
+import { BRAND_TAGLINE, LITE_AUTHOR, OFFICIAL_PROJECT, PRIVACY_POLICY_URL, PRO_AUTHOR, SEO_LANDING_ROUTES } from './officialProject';
 
 interface LandingSeoChromeProps {
   children: ReactNode;
@@ -22,6 +22,9 @@ export function LandingSeoHeader({ compactNav = false }: { compactNav?: boolean 
           </span>
         </a>
         <nav className="hidden sm:flex items-center gap-4 text-xs text-zinc-400" aria-label="Site">
+          <a href="/roadmap" className="hover:text-white transition-colors font-semibold text-cyan-400/80">
+            Full guide
+          </a>
           <a href="/about" className="hover:text-white transition-colors">
             About
           </a>
@@ -50,6 +53,9 @@ export function LandingSeoFooter({ activePath }: { activePath?: string }) {
           <a href="/" className={activePath === '/' ? 'text-cyan-400' : 'hover:text-zinc-300'}>
             Home
           </a>
+          <a href="/roadmap" className={activePath === '/roadmap' ? 'text-cyan-400' : 'hover:text-zinc-300'}>
+            Full guide
+          </a>
           <a href="/about" className={activePath === '/about' ? 'text-cyan-400' : 'hover:text-zinc-300'}>
             About
           </a>
@@ -62,6 +68,9 @@ export function LandingSeoFooter({ activePath }: { activePath?: string }) {
               {r.label}
             </a>
           ))}
+          <a href={PRIVACY_POLICY_URL} className="hover:text-zinc-300">
+            Privacy
+          </a>
           <a href={OFFICIAL_PROJECT.liteRepo} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-300">
             Lite GitHub
           </a>

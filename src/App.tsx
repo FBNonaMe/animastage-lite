@@ -23,6 +23,7 @@ import {
   MAX_SCENE_CHARACTERS,
   patchStateForMultiCharacterLoad,
 } from './scene';
+import { fixScenePhysics, clearPhysicsInstabilityHint, warnDuplicateModelImport } from './physics/physicsStabilitySystem';
 import { playheadRef, MMD_FPS, setPlayheadFrame } from './utils/playhead';
 import { createEmptyKeyframes } from './components/TimelineLogic';
 import { createEmptyCameraKeyframes } from './components/CameraLogic';
@@ -644,6 +645,11 @@ export default function App({ mode = 'editor', initialProject = null }: AppProps
   }, []);
 
   // Custom uploads (folder / zip / drop) — supports multiple .pmx/.pmd in one bundle.
+  const handleFixPhysics = useCallback(() => {
+    clearPhysicsInstabilityHint();
+    fixScenePhysics();
+  }, []);
+
   const handleLoadCustomModel = useCallback(
     (payload: ProcessedMMDFiles | ProcessedMMDFiles[]) => {
       const items = Array.isArray(payload) ? payload : [payload];
@@ -663,6 +669,17 @@ export default function App({ mode = 'editor', initialProject = null }: AppProps
           if (!canAddSceneCharacter(prev.models.length + added.length)) break;
 
           const data = items[i]!;
+          const fingerprint =
+            data.contentFingerprint ??
+            `${(data.modelFileName ?? data.name).toLowerCase()}:${data.modelByteSize ?? 0}`;
+          const isDuplicate = [...prev.models, ...added].some(
+            (m) => m.contentFingerprint && m.contentFingerprint === fingerprint
+          );
+          if (isDuplicate) {
+            warnDuplicateModelImport(data.name);
+            window.alert('Duplicate model detected. Physics may be unstable.');
+          }
+
           const spawn = getNextSpawnPosition([...prev.models, ...added]);
           const newId = `model_${Date.now()}_${i}`;
           const hasVmd = (data.vmdBlobUrls?.length ?? 0) > 0;
@@ -681,6 +698,7 @@ export default function App({ mode = 'editor', initialProject = null }: AppProps
             keyframes: createEmptyKeyframes(),
             blobUrl: data.blobUrl,
             modelFileName: data.modelFileName,
+            contentFingerprint: fingerprint,
             customManager: data.manager,
             fileMap: data.fileMap,
             vmdBlobUrls: data.vmdBlobUrls,
@@ -1277,6 +1295,7 @@ export default function App({ mode = 'editor', initialProject = null }: AppProps
         flyToCameraRef.current?.(snapshot);
       }}
       onRestartPhysics={() => modelApiRef.current?.restartPhysics()}
+      onFixPhysics={handleFixPhysics}
       videoRecordBusy={videoRecorder.busy}
       videoRecordMode={videoRecorder.mode}
       exportDurationSec={exportDurationSec}
@@ -1553,6 +1572,7 @@ export default function App({ mode = 'editor', initialProject = null }: AppProps
           flyToCameraRef.current?.(snapshot);
         }}
         onRestartPhysics={() => modelApiRef.current?.restartPhysics()}
+      onFixPhysics={handleFixPhysics}
         videoRecordBusy={videoRecorder.busy}
         videoRecordMode={videoRecorder.mode}
         exportDurationSec={exportDurationSec}
@@ -1642,7 +1662,7 @@ export default function App({ mode = 'editor', initialProject = null }: AppProps
             onShare={() => void product.handleShareScene()}
             onExport={() =>
               product.showToast(
-                'Экспорт: вкладка FX внизу → длина → MP4 HQ или Live. На Android надёжнее Live.',
+                'Export: open the FX tab at the bottom → set length → MP4 HQ or Live. On Android, Live is more reliable.',
                 5500
               )
             }

@@ -1,8 +1,16 @@
-import { ANDROID_RELEASE, SITE_URL } from './androidRelease';
+import {
+  ANDROID_RELEASE,
+  SITE_URL,
+  GOOGLE_PLAY_URL,
+  getGooglePlayUrl,
+  isPlayStorePublished,
+} from './androidRelease';
 
-export { SITE_URL, ANDROID_RELEASE };
+export { SITE_URL, ANDROID_RELEASE, GOOGLE_PLAY_URL, getGooglePlayUrl, isPlayStorePublished };
 
 export const BRAND_TAGLINE = 'AnimaStage Lite — Official Browser MMD Studio';
+
+export const PRIVACY_POLICY_URL = `${SITE_URL}/privacy-policy.html`;
 
 export const OFFICIAL_PROJECT = {
   siteUrl: SITE_URL,

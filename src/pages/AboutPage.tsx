@@ -170,6 +170,13 @@ export default function AboutPage({ onStart }: AboutPageProps) {
 
           <h2 className="text-xl font-bold text-white mt-10 mb-3">SEO guides</h2>
           <p>
+            <a href="/roadmap" className="text-cyan-400 hover:text-cyan-300 font-semibold">
+              Full guide (browser + Android)
+            </a>
+            {' — '}
+            where to click on the landing page and how to use the studio.
+          </p>
+          <p className="mt-3">
             Topic pages:{' '}
             <a href="/mmd-android" className="text-cyan-400 hover:text-cyan-300">
               MMD Android

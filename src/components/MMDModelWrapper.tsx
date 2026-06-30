@@ -32,6 +32,17 @@ import {
   syncMmdLitePhysicsConfig,
 } from '../utils/mmdMotionLite';
 import { restartMeshPhysics } from '../utils/mmdPhysicsLifecycle';
+import {
+  registerPhysicsModel,
+  unregisterPhysicsModel,
+  updatePhysicsModelVisibility,
+  allocateCollisionGroupBit,
+} from '../physics/physicsStabilityRegistry';
+import {
+  applyDuplicateCollisionIsolation,
+  applyStabilitySafetyLayer,
+  setModelPhysicsHidden,
+} from '../physics/physicsStabilitySystem';
 import { enhanceMmdMaterials } from '../utils/enhanceMmdMaterials';
 import { applyCharacterMaterialQuality } from '../utils/applyCharacterMaterialQuality';
 import { frameToTime, seekAnimationMixer } from '../utils/animationSync';
@@ -64,6 +75,8 @@ import {
 } from '../utils/mmdModelDetailing';
 import { applyMaterialDetailingAndSmoothing } from '../utils/mmdMaterialDetailing';
 import { registerCharacterRoot } from '../scene/characterHeadRegistry';
+import { registerScenePhysics } from '../scene/scenePhysicsRegistry';
+import { applyModelRenderPerfPolicy } from '../utils/modelRenderPerfPolicy';
 import { runSafeMeshLoadOptimizationsAsync } from '../render/meshLoadOptimizations';
 
 if (typeof window !== 'undefined') {
@@ -590,9 +603,17 @@ function RootMarkerVisual({ onSelectRoot }: RootMarkerVisualProps) {
 interface MMDModelWrapperProps {
   /** Registers root for duo camera framing (Scene outliner id). */
   sceneModelId?: string;
+  /** Scene outliner visibility — physics stays registered when hidden. */
+  modelVisible?: boolean;
+  /** Duplicate detection / collision isolation hash. */
+  contentFingerprint?: string;
   url: string;
   isPlaying: boolean;
   physicsMode: 'anytime' | 'playtime' | 'off';
+  /** When false, skip Bullet sim (multi-char background while paused). */
+  physicsSimulation?: boolean;
+  /** Shadow cast/receive for skinned meshes — off for background duo characters. */
+  castShadow?: boolean;
   displayBodies?: boolean;
   morphs: MorphValues;
   selectedBone: string;
@@ -664,9 +685,13 @@ function applyCharacterMaterialPipeline(
 
 export default function MMDModelWrapper({
   sceneModelId,
+  modelVisible = true,
+  contentFingerprint = '',
   url,
   isPlaying,
   physicsMode,
+  physicsSimulation = true,
+  castShadow = true,
   displayBodies = false,
   morphs,
   selectedBone,
@@ -724,11 +749,15 @@ export default function MMDModelWrapper({
   const proceduralApiRef = useRef<MMDModelApi | null>(null);
   const prevRootPositionRef = useRef(new THREE.Vector3());
   const modelPositionRef = useRef(modelPosition);
+  const collisionGroupBitRef = useRef<number | null>(null);
+  const modelVisibleRef = useRef(modelVisible);
 
   const morphsRef = useRef(morphs);
   const boneRotationRef = useRef(boneRotation);
   const selectedBoneRef = useRef(selectedBone);
   const physicsModeRef = useRef(physicsMode);
+  const physicsSimulationRef = useRef(physicsSimulation);
+  const castShadowRef = useRef(castShadow);
   const isPlayingRef = useRef(isPlaying);
   const animationReadyRef = useRef(animationReady);
   const hasVmdRef = useRef(hasVmdAnimation);
@@ -783,6 +812,20 @@ export default function MMDModelWrapper({
   useEffect(() => {
     physicsModeRef.current = physicsMode;
   }, [physicsMode]);
+
+  useEffect(() => {
+    physicsSimulationRef.current = physicsSimulation;
+  }, [physicsSimulation]);
+
+  useEffect(() => {
+    castShadowRef.current = castShadow;
+    const m = meshRef.current;
+    if (!m) return;
+    applyModelRenderPerfPolicy(m, {
+      castShadow,
+      frustumCulled: !castShadow,
+    });
+  }, [castShadow, mesh]);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -1024,8 +1067,95 @@ export default function MMDModelWrapper({
   const pmxMetadataMeshIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    modelVisibleRef.current = modelVisible;
+  }, [modelVisible]);
+
+  useEffect(() => {
     onModelReady?.(mesh ? buildMeshApi() : useProcedural ? proceduralApiRef.current : null);
   }, [mesh, useProcedural, buildMeshApi, onModelReady]);
+
+  useEffect(() => {
+    if (!sceneModelId || !meshRef.current || !helperRef.current) return;
+
+    if (collisionGroupBitRef.current === null) {
+      collisionGroupBitRef.current = allocateCollisionGroupBit();
+    }
+
+    const meshForReg = meshRef.current;
+    const helperForReg = helperRef.current;
+    const groupBit = collisionGroupBitRef.current;
+    const hash = contentFingerprint || sceneModelId;
+
+    registerPhysicsModel({
+      sceneModelId,
+      mesh: meshForReg,
+      helper: helperForReg,
+      visible: modelVisibleRef.current,
+      contentHash: hash,
+      collisionGroupBit: groupBit,
+      getPhysics: () => getHelperMeshState(helperForReg, meshForReg)?.physics,
+      syncSkeleton: () => {
+        if (meshRef.current) syncSkeletonBeforePhysics(meshRef.current);
+      },
+      restartPhysicsFull: () => buildMeshApi()?.restartPhysics(),
+      ensurePhysicsEnabled: () => {
+        helperForReg.enable('physics', true);
+      },
+    });
+
+    applyDuplicateCollisionIsolation();
+    if (!modelVisibleRef.current) {
+      const reg = {
+        sceneModelId,
+        mesh: meshForReg,
+        helper: helperForReg,
+        visible: false,
+        contentHash: hash,
+        collisionGroupBit: groupBit,
+        getPhysics: () => getHelperMeshState(helperForReg, meshForReg)?.physics,
+        syncSkeleton: () => {
+          if (meshRef.current) syncSkeletonBeforePhysics(meshRef.current);
+        },
+      };
+      setModelPhysicsHidden(reg, true);
+    }
+
+    return () => unregisterPhysicsModel(sceneModelId);
+  }, [sceneModelId, mesh, animationReady, contentFingerprint, buildMeshApi]);
+
+  useEffect(() => {
+    if (!sceneModelId || !meshRef.current || !helperRef.current) return;
+    const currentMesh = meshRef.current;
+    const helper = helperRef.current;
+    const physics = getHelperMeshState(helper, currentMesh)?.physics;
+    if (!physics) return;
+    return registerScenePhysics(physics, sceneModelId);
+  }, [sceneModelId, mesh, animationReady]);
+
+  useEffect(() => {
+    if (!sceneModelId) return;
+    updatePhysicsModelVisibility(sceneModelId, modelVisible);
+    if (meshRef.current) meshRef.current.visible = modelVisible;
+
+    const helper = helperRef.current;
+    const currentMesh = meshRef.current;
+    if (!helper || !currentMesh) return;
+
+    const reg = {
+      sceneModelId,
+      mesh: currentMesh,
+      helper,
+      visible: modelVisible,
+      contentHash: contentFingerprint || sceneModelId,
+      collisionGroupBit: collisionGroupBitRef.current ?? 1,
+      getPhysics: () => getHelperMeshState(helper, currentMesh)?.physics,
+      syncSkeleton: () => syncSkeletonBeforePhysics(currentMesh),
+    };
+    setModelPhysicsHidden(reg, !modelVisible);
+    if (modelVisible) {
+      helper.enable('physics', physicsModeRef.current !== 'off');
+    }
+  }, [modelVisible, sceneModelId, contentFingerprint]);
 
   useEffect(() => {
     if (!mesh) {
@@ -1461,6 +1591,7 @@ export default function MMDModelWrapper({
       isAmmoInitialized() &&
       !isAmmoPhysicsBroken() &&
       physicsMode !== 'off' &&
+      physicsSimulation &&
       (physicsMode === 'anytime' ||
         (physicsMode === 'playtime' && isPlaying));
     helperRef.current.enable('physics', physicsEnabled);
@@ -1471,7 +1602,7 @@ export default function MMDModelWrapper({
         configureArmPhysicsForAnimation(meshRef.current, helperRef.current);
       }
     }
-  }, [physicsMode, isPlaying]);
+  }, [physicsMode, isPlaying, physicsSimulation]);
 
   useEffect(() => {
     if (!mesh || !helperRef.current) return;
@@ -1528,6 +1659,7 @@ export default function MMDModelWrapper({
       ammoReadyRef.current &&
       !isAmmoPhysicsBroken() &&
       physicsModeRef.current !== 'off' &&
+      physicsSimulationRef.current &&
       (physicsModeRef.current === 'anytime' ||
         (physicsModeRef.current === 'playtime' && (playing || capturing)));
     // Cloth / hair / skirt — Bullet rigid bodies.
@@ -1610,13 +1742,16 @@ export default function MMDModelWrapper({
     }
 
     // Pose first, then cloth sim (timeline or idle). VMD uses helper.update() above.
-    if (enablePhysics && meshState?.physics) {
+    if (enablePhysics && meshState?.physics && modelVisibleRef.current) {
       const simCloth =
         playing || physicsModeRef.current === 'anytime';
       if (simCloth && !useVmdAnimation) {
         syncSkeletonBeforePhysics(currentMesh);
         meshState.physics.update(delta);
+        applyStabilitySafetyLayer(meshState.physics);
       }
+    } else if (enablePhysics && meshState?.physics && useVmdAnimation) {
+      applyStabilitySafetyLayer(meshState.physics);
     }
 
     const isGizmoDragging = gizmoDraggingRef?.current ?? false;
@@ -1662,12 +1797,13 @@ export default function MMDModelWrapper({
       <>
         <group
           ref={assignRootGroup}
+          visible={modelVisible}
           position={[modelPosition.x, modelPosition.y, modelPosition.z]}
         >
-          {!hideStagingChrome && rootManipulatorActive && (
+          {!hideStagingChrome && rootManipulatorActive && modelVisible && (
             <RootMarkerVisual onSelectRoot={onSelectRoot} />
           )}
-          <primitive object={mesh} />
+          <primitive object={mesh} visible={modelVisible} />
           {showBonePickers && (
             <SkeletonBonePickers
               mesh={mesh}

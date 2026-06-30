@@ -23,7 +23,7 @@ export function isPlaybackPerfActive(): boolean {
   return playbackActive;
 }
 
-/** Minimum DPR multiplier while playing in 16:9 — avoids "мыло" from stacked downscales. */
+/** Minimum DPR multiplier while playing in 16:9 — avoids blur from stacked downscales. */
 export function getPlaybackDprFloor(): number {
   if (!playbackActive || isPortraitFormat(viewportFormat)) return 0;
   if (getSceneTriangleCount() >= 500_000) return 0.72;

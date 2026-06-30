@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import {
+import { 
   FolderOpen,
-  Layers,
+  Layers, 
   Sliders,
   Wrench,
   Camera,
@@ -160,7 +160,7 @@ export default function Sidebar({
           <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Close panel">
             Close
           </Button>
-        </div>
+      </div>
       ) : null}
 
       <div className="studio-sidebar__scroll">
@@ -173,9 +173,9 @@ export default function Sidebar({
                 ['camera', 'Camera', Camera],
               ] as const
             ).map(([id, label, Icon]) => (
-              <button
+                  <button
                 key={id}
-                type="button"
+                    type="button"
                 role="tab"
                 aria-selected={mobileTab === id}
                 className={`mobile-panel-tabs__btn ${mobileTab === id ? 'mobile-panel-tabs__btn--active' : ''}`}
@@ -185,7 +185,7 @@ export default function Sidebar({
                   <Icon className="w-4 h-4" />
                   {label}
                 </span>
-              </button>
+                  </button>
             ))}
           </div>
         ) : null}

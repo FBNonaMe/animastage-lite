@@ -12,7 +12,7 @@ export function buildSoftwareApplicationSchema(
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Web, Android',
     url: pageUrl,
-    downloadUrl: ANDROID_RELEASE.directUrl,
+    downloadUrl: ANDROID_RELEASE.playStore.url ?? ANDROID_RELEASE.directUrl,
     softwareVersion: ANDROID_RELEASE.version,
     fileSize: `${ANDROID_RELEASE.sizeMb}MB`,
     description,

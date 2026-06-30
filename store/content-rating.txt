@@ -1,0 +1,27 @@
+# Google Play — Content rating (IARC) notes
+
+App: AnimaStage Lite
+Suggested audience: General / Teen (depends on UGC answers)
+
+## App type
+Utility / creative tool — user loads their own 3D models and animations.
+
+## Violence, sexual content, language
+- The app ships **no** bundled characters, music, or motions.
+- Users may load third-party MMD content — treat as **user-generated content**.
+
+## Typical questionnaire answers
+| Question | Suggested answer |
+|----------|------------------|
+| Does the app contain user-generated content? | **Yes** — users import their own PMX/VMD files |
+| Can users interact / share content? | **Limited** — export MP4 via system Share; no in-app social feed |
+| Does the app depict violence? | **No** in the app itself; user files may vary |
+| Gambling, drugs, etc. | **No** |
+
+## Expected rating
+Often **Everyone** or **Teen** depending on how Google interprets user-provided 3D model content. Answer honestly; mention the app is a local file tool without hosted content.
+
+## Store compliance reminders
+- Do not use copyrighted character names in screenshots unless you own the rights.
+- Demo model in app should be clearly licensed or your own asset.
+- No misleading “official MMD” claims — describe as compatible with MMD workflows.

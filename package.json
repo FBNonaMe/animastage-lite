@@ -13,6 +13,9 @@
     "sync:android:assets": "powershell -ExecutionPolicy Bypass -File scripts/sync-android-assets.ps1",
     "build:android": "powershell -ExecutionPolicy Bypass -File scripts/sync-android-assets.ps1",
     "build:android:release": "powershell -ExecutionPolicy Bypass -File scripts/sync-android-assets.ps1 -Release",
+    "setup:android-signing": "powershell -ExecutionPolicy Bypass -File scripts/setup-android-signing.ps1",
+    "release:android": "powershell -ExecutionPolicy Bypass -File scripts/bundle-android-play.ps1",
+    "bump:android": "powershell -ExecutionPolicy Bypass -File scripts/bump-android-version.ps1",
     "indexnow:submit": "powershell -ExecutionPolicy Bypass -File scripts/submit-indexnow.ps1"
   },
   "dependencies": {

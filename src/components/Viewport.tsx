@@ -54,12 +54,20 @@ import { useStudioLayout } from '../hooks/useStudioLayout';
 import { AdaptiveDprSync } from './perf/AdaptiveDprSync';
 import { PerfFrameBegin, PerfFrameEnd } from './perf/PerfFrameSync';
 import { MultiCharacterPhysicsCap } from './perf/MultiCharacterPhysicsCap';
+import MultiCharacterPerfSync from './perf/MultiCharacterPerfSync';
 import { getEffectiveVisualFx } from '../perf/effectiveVisualFx';
 import { getPerfRenderAdaptation } from '../perf/controller/renderAdaptation';
 import { isTemplateMotionActive } from '../perf/scenePerfPolicy';
 import { getDefaultLiveValues } from './TimelineLogic';
 import type { CameraFramingMode, MmdLiteConfig, SceneHdrSettings, ViewportFormat } from '../types';
 import { resolveCameraFramingFromModels } from '../scene/cameraFraming';
+import {
+  resolveModelCharacterQuality,
+  shouldCastShadowForModel,
+  shouldSimulatePhysicsForModel,
+  shouldUseLiteRenderForModel,
+} from '../scene/multiModelPolicy';
+import { countVisibleModels } from '../scene/sceneModelLayout';
 import StageAutoFollow from '../product/camera/StageAutoFollow';
 import { isHdrFile } from '../utils/hdrEnvironment';
 import LetterboxOverlay from './LetterboxOverlay';
@@ -233,6 +241,11 @@ function SceneContent({
   );
   const renderAdapt = getPerfRenderAdaptation();
   const templateMotion = isTemplateMotionActive(appState);
+  const visibleModelCount = countVisibleModels(appState.models);
+  const multiCharacterScene = visibleModelCount >= 2;
+  const shadowMapSize = multiCharacterScene
+    ? Math.min(1024, qualityGpu.shadowMapSize)
+    : qualityGpu.shadowMapSize;
   const cinematicBg =
     hasCustomBg ||
     appState.visualFx.bloomEnabled ||
@@ -249,6 +262,10 @@ function SceneContent({
       <PerfFrameBegin />
       <PerfFrameEnd />
       <MultiCharacterPhysicsCap />
+      <MultiCharacterPerfSync
+        models={appState.models}
+        selectedObjectId={appState.selectedObjectId}
+      />
       <AdaptiveDprSync
         characterQuality={characterQuality}
         viewportFormat={viewportFormat}
@@ -332,7 +349,7 @@ function SceneContent({
               : 2.1
         }
         color="#fff8f0"
-        shadow-mapSize={[qualityGpu.shadowMapSize, qualityGpu.shadowMapSize]}
+        shadow-mapSize={[shadowMapSize, shadowMapSize]}
         shadow-camera-near={0.5}
         shadow-camera-far={120}
         shadow-camera-left={-30}
@@ -360,9 +377,7 @@ function SceneContent({
       <MmdWeatherPrecip visualFx={appState.visualFx} />
 
       <group>
-        {appState.models
-          .filter((model) => model.visible)
-          .map((model) => {
+        {appState.models.map((model) => {
             const isActive = model.id === appState.selectedObjectId;
             const boneState = model.bones.find((b) => b.id === appState.selectedBoneId);
             const boneRot = isActive && boneState
@@ -372,11 +387,36 @@ function SceneContent({
                   z: boneState.rotationZ,
                 }
               : { x: 0, y: 0, z: 0 };
+            const modelCharacterQuality = resolveModelCharacterQuality(
+              characterQuality,
+              model.id,
+              appState.selectedObjectId,
+              appState.models
+            );
+            const liteRender = shouldUseLiteRenderForModel(
+              model.id,
+              appState.selectedObjectId,
+              appState.models
+            );
+            const physicsSimulation = shouldSimulatePhysicsForModel(
+              model.id,
+              appState.selectedObjectId,
+              appState.models,
+              appState.isPlaying,
+              model.visible
+            );
+            const castShadow = shouldCastShadowForModel(
+              model.id,
+              appState.selectedObjectId,
+              appState.models
+            );
 
             return (
               <MMDModelWrapper
                 key={model.id}
                 sceneModelId={model.id}
+                modelVisible={model.visible}
+                contentFingerprint={model.contentFingerprint}
                 url={
                   model.blobUrl ||
                   (model.type === 'custom'
@@ -385,6 +425,8 @@ function SceneContent({
                 }
                 isPlaying={appState.isPlaying}
                 physicsMode={appState.physicsMode}
+                physicsSimulation={physicsSimulation}
+                castShadow={castShadow}
                 displayBodies={showPhysicsBodies && isActive}
                 morphs={{
                   eyesBlink: model.morphs.eyes,
@@ -428,10 +470,12 @@ function SceneContent({
                     ? (frameCount) => onModelAnimationLoaded(model.id, frameCount)
                     : undefined
                 }
-                characterQuality={characterQuality}
+                characterQuality={modelCharacterQuality}
                 viewportFormat={viewportFormat}
                 mmdLite={mmdLite}
-                materialDetailing={appState.visualFx.materialDetailing !== false}
+                materialDetailing={
+                  !liteRender && appState.visualFx.materialDetailing !== false
+                }
                 materialSmoothing={appState.visualFx.materialSmoothing ?? 0.55}
                 onModelReady={
                   model.id === appState.selectedObjectId ? onModelReady : undefined

@@ -24,8 +24,11 @@ export interface MmdPhysicsBodyWrapper {
     setDamping: (lin: number, ang: number) => void;
     setMassProps: (mass: number, inertia: unknown) => void;
     updateInertiaTensor: () => void;
+  clearForces?: () => void;
     setLinearVelocity: (v: unknown) => void;
     setAngularVelocity: (v: unknown) => void;
+    getLinearVelocity: () => { x: () => number; y: () => number; z: () => number };
+    getAngularVelocity: () => { x: () => number; y: () => number; z: () => number };
     setCollisionFlags: (flags: number) => void;
     setActivationState: (state: number) => void;
     applyCentralForce: (v: unknown) => void;

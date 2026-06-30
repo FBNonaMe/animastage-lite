@@ -8,6 +8,7 @@ const MmdAndroidLandingPage = lazy(() => import('./pages/MmdAndroidLandingPage.t
 const MmdBrowserLandingPage = lazy(() => import('./pages/MmdBrowserLandingPage.tsx'));
 const MmdOnlineLandingPage = lazy(() => import('./pages/MmdOnlineLandingPage.tsx'));
 const AboutPage = lazy(() => import('./pages/AboutPage.tsx'));
+const RoadmapPage = lazy(() => import('./pages/RoadmapPage.tsx'));
 
 function normalizePath(pathname: string): string {
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -118,6 +119,18 @@ export default function RootRouter() {
     return (
       <Suspense fallback={<StudioBootScreen />}>
         <AboutPage onStart={studioNav.onStart} />
+      </Suspense>
+    );
+  }
+
+  if (path === '/roadmap' || path.startsWith('/roadmap/')) {
+    return (
+      <Suspense fallback={<StudioBootScreen />}>
+        <RoadmapPage
+          onStart={studioNav.onStart}
+          onStartDemo={studioNav.onStartDemo}
+          onStartDemoGallery={() => navigateTo('/app?demo=gallery')}
+        />
       </Suspense>
     );
   }

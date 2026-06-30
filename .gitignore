@@ -7,3 +7,5 @@ coverage/
 .env*
 !.env.example
 public/app-debug.apk
+store/releases/*.aab
+android/keystore.properties

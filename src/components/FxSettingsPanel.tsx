@@ -26,6 +26,7 @@ interface FxSettingsPanelProps {
   captureCamera?: () => CameraSnapshot | null;
   onFlyToBookmark?: (snapshot: CameraSnapshot) => void;
   onRestartPhysics?: () => void;
+  onFixPhysics?: () => void;
   videoRecordBusy?: boolean;
   videoRecordMode?: 'idle' | 'offline' | 'live';
   exportDurationSec?: number;
@@ -89,6 +90,7 @@ export default function FxSettingsPanel({
   captureCamera,
   onFlyToBookmark,
   onRestartPhysics,
+  onFixPhysics,
   videoRecordBusy = false,
   videoRecordMode = 'idle',
   exportDurationSec = 30,
@@ -485,6 +487,7 @@ export default function FxSettingsPanel({
           captureCamera={captureCamera}
           onFlyToBookmark={onFlyToBookmark}
           onRestartPhysics={onRestartPhysics}
+          onFixPhysics={onFixPhysics}
         />
       )}
 

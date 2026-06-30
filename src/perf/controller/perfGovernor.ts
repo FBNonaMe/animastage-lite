@@ -14,7 +14,7 @@ export interface LitePerfGovernorTier {
 }
 
 /**
- * Quality-first tiers: lower FX before crushing resolution (min ~78% — avoids "мыло").
+ * Quality-first tiers: lower FX before crushing resolution (min ~78% — avoids blur from stacked downscales).
  * Extra steps only trim god rays / SSAO / bloom via effectiveVisualFx.
  */
 export const MIN_GOVERNOR_RENDER_SCALE = 0.78;

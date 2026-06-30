@@ -64,6 +64,7 @@ interface TopMenuProps {
   captureCamera?: () => CameraSnapshot | null;
   onFlyToBookmark?: (snapshot: CameraSnapshot) => void;
   onRestartPhysics?: () => void;
+  onFixPhysics?: () => void;
   videoRecordBusy?: boolean;
   videoRecordMode?: 'idle' | 'offline' | 'live';
   exportDurationSec?: number;
@@ -123,6 +124,7 @@ export default function TopMenu({
   captureCamera,
   onFlyToBookmark,
   onRestartPhysics,
+  onFixPhysics,
   videoRecordBusy,
   videoRecordMode,
   exportDurationSec,
@@ -385,6 +387,7 @@ export default function TopMenu({
             captureCamera={captureCamera}
             onFlyToBookmark={onFlyToBookmark}
             onRestartPhysics={onRestartPhysics}
+            onFixPhysics={onFixPhysics}
             videoRecordBusy={videoRecordBusy}
             videoRecordMode={videoRecordMode}
             exportDurationSec={exportDurationSec}
@@ -517,6 +520,7 @@ export default function TopMenu({
                         captureCamera={captureCamera}
                         onFlyToBookmark={onFlyToBookmark}
                         onRestartPhysics={onRestartPhysics}
+            onFixPhysics={onFixPhysics}
                         videoRecordBusy={videoRecordBusy}
                         videoRecordMode={videoRecordMode}
                         exportDurationSec={exportDurationSec}

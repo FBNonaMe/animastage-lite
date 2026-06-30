@@ -1,11 +1,13 @@
 import { type ReactNode } from 'react';
 import SeoHead from '../components/SeoHead';
 import OfficialProjectBlock from '../landing/OfficialProjectBlock';
+import GooglePlayButton from '../landing/GooglePlayButton';
 import {
   ANDROID_RELEASE,
   BRAND_TAGLINE,
   LITE_AUTHOR,
   OFFICIAL_PROJECT,
+  PRIVACY_POLICY_URL,
   PRO_AUTHOR,
   SEO_LANDING_ROUTES,
   SITE_URL,
@@ -49,7 +51,7 @@ const CORE_FEATURES = [
   { icon: Upload, title: 'Load PMX / PMD + VMD', desc: 'Drop your folder — see your character move in one step.' },
   { icon: Play, title: 'Real-time playback', desc: 'Watch dances instantly — no desktop MMD required.' },
   { icon: Video, title: 'MP4 export', desc: 'Ship Shorts or widescreen video from the same tab.' },
-  { icon: Smartphone, title: 'Android app', desc: 'v1.2.3 portrait APK (~20 MB) — full studio on your phone, direct download.' },
+  { icon: Smartphone, title: 'Android app', desc: 'On Google Play — portrait studio on your phone, same PMX/VMD tools as the browser.' },
 ] as const;
 
 const ADVANCED_FEATURES = [
@@ -74,7 +76,7 @@ const FAQ = [
   },
   {
     q: 'Is there an Android app?',
-    a: `Yes — download v${ANDROID_RELEASE.version} (${ANDROID_RELEASE.sizeHint}, ${ANDROID_RELEASE.orientation.toLowerCase()}) from the Android section. It opens the full MMD studio on your phone with the same PMX/VMD workflow as the browser. Debug APK for sideload; no Google Play yet.`,
+    a: `Yes — v${ANDROID_RELEASE.version} on Google Play (${ANDROID_RELEASE.orientation.toLowerCase()}). Same PMX/VMD studio as the browser. Optional sideload APK on this site for advanced users.`,
   },
 ] as const;
 
@@ -137,7 +139,7 @@ export default function LandingPage({
     <div className="w-full overflow-x-hidden landing-mesh text-zinc-100 font-sans antialiased">
       <SeoHead
         title="Run MMD in Your Browser — No Install | AnimaStage Lite"
-        description="Official AnimaStage Lite — MMD online in your browser. PMX viewer, VMD player, WebGL + WASM physics, MP4 export. Android APK. Free · client-side."
+        description="Official AnimaStage Lite — MMD online in your browser. PMX viewer, VMD player, WebGL + WASM physics, MP4 export. Google Play Android app. Free · client-side."
         canonical={SITE_URL}
         keywords="MMD online, MMD Android, MikuMikuDance browser, run MMD on phone, PMX viewer online, WebMMD official"
         ogUrl={SITE_URL}
@@ -156,6 +158,9 @@ export default function LandingPage({
           </a>
 
           <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-400">
+            <a href="/roadmap" className="hover:text-cyan-300 text-cyan-400/90 font-semibold transition-colors">
+              Full guide
+            </a>
             <button type="button" onClick={() => scrollTo('demo')} className="hover:text-white cursor-pointer transition-colors">
               Demo
             </button>
@@ -186,15 +191,7 @@ export default function LandingPage({
           </nav>
 
           <div className="flex items-center gap-2 shrink-0 md:hidden">
-            <a
-              href={ANDROID_RELEASE.url}
-              download={ANDROID_RELEASE.downloadName}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-950/40 text-emerald-200 font-semibold text-xs px-3 py-2"
-              title={`Download Android v${ANDROID_RELEASE.version}`}
-            >
-              <Download className="w-3.5 h-3.5" />
-              APK
-            </a>
+            <GooglePlayButton size="compact" className="!text-xs !py-2 !px-3" />
             <PrimaryBtn onClick={onStartDemo} className="!text-sm !py-2 !px-4">
               Try Demo
             </PrimaryBtn>
@@ -220,17 +217,23 @@ export default function LandingPage({
                   Run MMD in Your Browser — No Install
                 </h1>
 
-                <p className="text-lg text-zinc-400 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-8">
+                <p className="text-lg text-zinc-400 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-4">
                   Load PMX + VMD, preview animations instantly, and export video — in the browser or on{' '}
-                  <button
-                    type="button"
-                    onClick={() => scrollTo('android')}
-                    className="text-emerald-400/90 hover:text-emerald-300 font-medium underline-offset-2 hover:underline cursor-pointer"
+                  <a
+                    href="/mmd-android"
+                    className="text-emerald-400/90 hover:text-emerald-300 font-medium underline-offset-2 hover:underline"
                   >
-                    Android v{ANDROID_RELEASE.version}
-                  </button>
+                    Google Play
+                  </a>
                   .
                 </p>
+
+                <a
+                  href="/roadmap"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-400/90 hover:text-cyan-300 mb-8 mx-auto lg:mx-0 transition-colors"
+                >
+                  New here? Read the full browser &amp; Android guide →
+                </a>
 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center lg:justify-start mb-5">
                   <PrimaryBtn onClick={onStartDemo}>
@@ -241,14 +244,7 @@ export default function LandingPage({
                     <Upload className="w-4 h-4 text-cyan-400" />
                     Upload Your Model
                   </GhostBtn>
-                  <a
-                    href={ANDROID_RELEASE.url}
-                    download={ANDROID_RELEASE.downloadName}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/30 hover:bg-emerald-900/40 hover:border-emerald-400/50 text-emerald-100 font-semibold text-sm sm:text-base px-6 py-3.5 transition-all"
-                  >
-                    <Download className="w-4 h-4" />
-                    Android v{ANDROID_RELEASE.version}
-                  </a>
+                  <GooglePlayButton size="compact" />
                 </div>
 
                 <div className="flex flex-col gap-2 mb-4">
@@ -538,10 +534,15 @@ export default function LandingPage({
                 Full MMD Studio on your phone
               </h2>
               <p className="text-zinc-400 text-sm sm:text-base max-w-2xl mx-auto">
-                Install <strong className="text-zinc-200 font-semibold">v{ANDROID_RELEASE.version}</strong> — the same
-                editor as animastage-lite.app, packaged for portrait WebView. Free debug APK (~20 MB), direct download below.{' '}
+                Install from{' '}
+                <strong className="text-zinc-200 font-semibold">Google Play</strong> — the same
+                editor as animastage-lite.app, packaged for portrait WebView.{' '}
+                <a href="/roadmap" className="text-emerald-400 hover:text-emerald-300 font-semibold">
+                  Full tutorial (browser + Android) →
+                </a>
+                {' · '}
                 <a href="/mmd-android" className="text-cyan-400 hover:text-cyan-300 font-semibold">
-                  MMD Android guide →
+                  MMD Android page →
                 </a>
               </p>
             </div>
@@ -562,10 +563,9 @@ export default function LandingPage({
                   </div>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {[
-                      ANDROID_RELEASE.sizeHint,
+                      'Google Play',
                       ANDROID_RELEASE.minAndroid,
                       ANDROID_RELEASE.orientation,
-                      'Sideload APK',
                     ].map((chip) => (
                       <span
                         key={chip}
@@ -579,25 +579,17 @@ export default function LandingPage({
                     AnimaStage Lite — portrait studio
                   </h3>
                   <p className="text-sm text-zinc-400 leading-relaxed max-w-xl">
-                    No Google Play yet — download the official debug build from this page. Opens directly into the
-                    editor: PMX/PMD/VMD import, timeline, Camera Studio, Generate Short, and MP4 export — 100%
-                    client-side.
+                    Available on Google Play. Opens directly into the editor: PMX/PMD/VMD import, timeline,
+                    Camera Studio, and MP4 export — 100% client-side.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
+                  <GooglePlayButton />
                   <a
-                    href={ANDROID_RELEASE.url}
-                    download={ANDROID_RELEASE.downloadName}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-zinc-950 font-bold text-sm sm:text-base px-6 py-3.5 shadow-lg shadow-emerald-500/25 transition-all"
-                  >
-                    <Download className="w-5 h-5" />
-                    Download APK ({ANDROID_RELEASE.sizeMb} MB)
-                  </a>
-                  <a
-                    href={ANDROID_RELEASE.url}
+                    href="/mmd-android"
                     className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-950/20 hover:bg-emerald-900/30 text-emerald-200/90 font-semibold text-xs px-4 py-2.5 transition-all"
                   >
-                    Open direct link
+                    MMD Android guide
                   </a>
                 </div>
               </div>
@@ -637,23 +629,32 @@ export default function LandingPage({
                 </ul>
               </div>
 
-              <p className="text-[11px] text-zinc-500 mb-4 break-all">
-                File: <code className="text-zinc-400">{ANDROID_RELEASE.downloadName}</code>
-                {' · '}
-                URL:{' '}
-                <a href={ANDROID_RELEASE.url} className="text-emerald-400/90 hover:text-emerald-300">
-                  {ANDROID_RELEASE.directUrl}
-                </a>
-              </p>
-
-              <div className="rounded-xl border border-white/5 bg-zinc-950/50 p-4 sm:p-5">
-                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">How to install</p>
+              <div className="rounded-xl border border-white/5 bg-zinc-950/50 p-4 sm:p-5 mb-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400 mb-3">Install from Google Play</p>
                 <ol className="space-y-2 text-sm text-zinc-400 list-decimal list-inside">
                   {ANDROID_RELEASE.installSteps.map((step) => (
                     <li key={step}>{step}</li>
                   ))}
                 </ol>
               </div>
+
+              <details className="rounded-xl border border-white/5 bg-zinc-950/50 p-4 sm:p-5">
+                <summary className="cursor-pointer text-xs font-bold uppercase tracking-wider text-zinc-400">
+                  Optional sideload APK
+                </summary>
+                <p className="text-[11px] text-zinc-500 mt-3 mb-2 break-all">
+                  File: <code className="text-zinc-400">{ANDROID_RELEASE.downloadName}</code>
+                  {' · '}
+                  <a href={ANDROID_RELEASE.url} download={ANDROID_RELEASE.downloadName} className="text-emerald-400/90 hover:text-emerald-300">
+                    {ANDROID_RELEASE.directUrl}
+                  </a>
+                </p>
+                <ol className="space-y-2 text-sm text-zinc-500 list-decimal list-inside">
+                  {ANDROID_RELEASE.sideloadInstallSteps.map((step) => (
+                    <li key={step}>{step}</li>
+                  ))}
+                </ol>
+              </details>
             </div>
 
             <p className="text-center text-xs text-zinc-500">
@@ -702,17 +703,10 @@ export default function LandingPage({
                 <ChevronRight className="w-5 h-5" />
               </GhostBtn>
             </div>
-            <a
-              href={ANDROID_RELEASE.url}
-              download={ANDROID_RELEASE.downloadName}
-              className="inline-flex items-center gap-2 mt-8 text-sm font-semibold text-emerald-400/90 hover:text-emerald-300 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Download Android v{ANDROID_RELEASE.version}
-            </a>
+            <GooglePlayButton className="mt-8" />
             <p className="mt-2 text-xs text-zinc-600">
               <button type="button" onClick={() => scrollTo('android')} className="hover:text-zinc-400 cursor-pointer">
-                Install guide &amp; release notes
+                Install guide &amp; sideload APK
               </button>
             </p>
           </div>
@@ -723,6 +717,9 @@ export default function LandingPage({
         <p className="text-zinc-400 font-semibold mb-2">{BRAND_TAGLINE}</p>
         <p className="text-[11px] text-zinc-600 mb-4 max-w-md mx-auto">{OFFICIAL_PROJECT.statement}</p>
         <nav className="flex flex-wrap justify-center gap-x-3 gap-y-1 mb-3" aria-label="Footer">
+          <a href="/roadmap" className="text-cyan-400/90 hover:text-cyan-300 font-semibold">
+            Full guide
+          </a>
           <a href="/about" className="text-zinc-400 hover:text-cyan-400">
             About
           </a>
@@ -731,8 +728,11 @@ export default function LandingPage({
               {r.label}
             </a>
           ))}
-          <a href="#android" className="text-zinc-400 hover:text-emerald-400">
-            Android v{ANDROID_RELEASE.version}
+          <a href="/mmd-android" className="text-zinc-400 hover:text-emerald-400">
+            Google Play
+          </a>
+          <a href={PRIVACY_POLICY_URL} className="text-zinc-400 hover:text-cyan-400">
+            Privacy
           </a>
           <a href={OFFICIAL_PROJECT.liteRepo} className="text-zinc-400 hover:text-cyan-400">
             Lite GitHub

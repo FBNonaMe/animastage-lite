@@ -1,3 +1,15 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "redirects": [
+    {
+      "source": "/privacy",
+      "destination": "/privacy-policy.html",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!privacy-policy\\.html|privacy|app-debug\\.apk|sitemap\\.xml|robots\\.txt|studio-screenshot\\.png|.*\\.(png|jpg|jpeg|webp|svg|ico|apk|xml|txt|html|json|js|css|woff2?)).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

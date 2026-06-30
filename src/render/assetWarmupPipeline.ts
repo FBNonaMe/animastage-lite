@@ -61,10 +61,10 @@ export interface AssetWarmupOptions {
 export async function runAssetWarmupPipeline(options: AssetWarmupOptions): Promise<void> {
   const { mesh, renderer, scene, camera, helper, animationClip, onProgress } = options;
 
-  onProgress?.('Прогрев шейдеров и текстур…');
+  onProgress?.('Warming up shaders and textures…');
 
   if (helper && animationClip) {
-    onProgress?.('Прогрев скелета (кадр 0)…');
+    onProgress?.('Warming up skeleton (frame 0)…');
     helper.enable('animation', true);
     helper.update(0.001);
     await yieldToMain();
@@ -78,11 +78,11 @@ export async function runAssetWarmupPipeline(options: AssetWarmupOptions): Promi
     mesh.skeleton.update();
   }
 
-    onProgress?.('Загрузка текстур в GPU…');
+    onProgress?.('Uploading textures to GPU…');
     await initTexturesWebGL(renderer, collectMeshTextures(mesh));
     await yieldToMain();
 
-    onProgress?.('Компиляция шейдеров…');
+    onProgress?.('Compiling shaders…');
     const isWebGpu = Boolean(
       (renderer as unknown as { isWebGPURenderer?: boolean }).isWebGPURenderer
     );

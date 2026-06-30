@@ -1,0 +1,41 @@
+# Google Play — Data safety (Play Console questionnaire)
+
+App: AnimaStage Lite
+Package: com.webmmd.suite
+Developer: FBNonaMe
+
+## Does your app collect or share any of the required user data types?
+**No** — for the current release (v1.2.3).
+
+## Is all of the user data collected by your app encrypted in transit?
+**Not applicable** — no user data is transmitted to developer servers.
+
+## Do you provide a way for users to request that their data is deleted?
+**Not applicable** — no account and no server-side storage of user content.
+
+## Data types — collected?
+| Type | Collected? | Shared? | Purpose |
+|------|------------|---------|---------|
+| Personal info (name, email) | No | No | — |
+| Financial info | No | No | — |
+| Location | No | No | — |
+| Photos / videos | No* | No | User picks files locally; not uploaded |
+| Files and docs | No* | No | Processed on-device only |
+| App activity / analytics | No | No | — |
+| Device or other IDs | No | No | — |
+
+\* Files are opened via the system picker and processed in-app memory/storage only. The developer does not receive them.
+
+## Permissions declared (AndroidManifest)
+- `INTERNET` — WebView runtime (local bundled web app). No remote API calls for user models.
+
+## Third-party SDKs
+- Capacitor plugins: App, Filesystem, Share, Splash Screen, Status Bar — no analytics SDKs in release build.
+
+## Security practices (optional section in Console)
+- Data is processed locally on device.
+- No account system.
+- Privacy policy: https://animastage-lite.app/privacy-policy.html
+
+## If you add analytics or cloud sync later
+Update this file, privacy-policy.html, and the Play Console Data safety form before publishing an update.

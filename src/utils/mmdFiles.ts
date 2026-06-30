@@ -6,6 +6,8 @@ export interface ProcessedMMDFiles {
   name: string;
   blobUrl: string;
   modelFileName: string;
+  modelByteSize?: number;
+  contentFingerprint?: string;
   manager: THREE.LoadingManager;
   fileMap: Record<string, string>;
   vmdBlobUrls: string[];
@@ -569,6 +571,8 @@ export async function processMMDFiles(
     name: modelFile.name.replace(/\.[^/.]+$/, ''),
     blobUrl: modelBlobUrl,
     modelFileName: modelFile.name,
+    modelByteSize: modelFile.size,
+    contentFingerprint: `${modelFile.name.toLowerCase()}:${modelFile.size}`,
     manager,
     fileMap,
     vmdBlobUrls,

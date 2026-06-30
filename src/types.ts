@@ -150,6 +150,8 @@ export interface MMDModel {
   activePoseId?: string | null;
   /** PMX/PMD validation report (textures, performance). */
   modelAnalysis?: import('./analyzer/types').ModelAnalysisReport | null;
+  /** Fingerprint for duplicate detection (filename + byte size). */
+  contentFingerprint?: string;
 }
 
 export interface SceneObject {

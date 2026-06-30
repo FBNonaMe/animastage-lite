@@ -1,21 +1,21 @@
 ## Scene Optimization Utilities — Complete Integration
 
-### ✅ Что добавлено в проект
+### What was added
 
-Все функции из внешнего проекта (`webgl-scene-optim.js`) полностью интегрированы:
+All functions from the external project (`webgl-scene-optim.js`) are integrated:
 
-#### 📁 Структура:
+#### Structure
 ```
 src/render/sceneOptim/
-├── webglSceneOptim.ts       → 38 функций + 2 класса + все типы
+├── webglSceneOptim.ts       → 38 functions + 2 classes + all types
 ├── mainThreadScheduler.ts   → runWorkInSlices, scheduleIdleWork
-├── index.ts                 → центральный экспорт
-└── USAGE_GUIDE.md          → подробная документация
+├── index.ts                 → central export
+└── USAGE_GUIDE.md          → detailed documentation
 ```
 
-#### 📤 Как импортировать:
+#### How to import
 
-**Вариант 1: Из основного модуля render**
+**Option 1: From the main render module**
 ```typescript
 import {
   createOptimizedRenderer,
@@ -25,7 +25,7 @@ import {
 } from '../render';
 ```
 
-**Вариант 2: Прямо из sceneOptim**
+**Option 2: Directly from sceneOptim**
 ```typescript
 import {
   createOptimizedRenderer,
@@ -35,24 +35,24 @@ import {
 
 ---
 
-### 🛠️ Доступные утилиты
+### Available utilities
 
-| Категория | Функции | Применение |
-|-----------|---------|-----------|
-| **Renderer** | `createOptimizedRenderer`, `applyPixelRatioCap`, `DynamicResolutionGovernor` | Создание и оптимизация рендера |
-| **Geometry** | `estimateGeometryBudget`, `createStaticBatchedGroup`, `createInstancedDecorations`, `freezeStaticObjectTree` | Оптимизация геометрии и draw calls |
-| **Materials** | `downgradeMaterial`, `applyMaterialDowngrade`, `clampTextureAnisotropy`, `auditTransparentMaterials` | Деградация материалов по дистанции |
-| **Shadows** | `configureRendererShadows`, `fitDirectionalShadowCamera`, `applyShadowProxiesToMap`, `buildLowPolyProxyGeometry` | Оптимизация теней |
-| **Raycasting** | `createPickProxy`, `raycastPickProxies` | Невидимые коллайдеры для пика |
-| **Loading** | `createOptimizedGLTFLoader`, `optimizeLoadedGLTFScene`, `disposeMaterial`, `disposeObject3D` | Загрузка и очистка GPU памяти |
-| **Analysis** | `estimateSceneComplexity`, `cleanupScene` | Анализ сложности и полная очистка сцены |
-| **Scheduling** | `runWorkInSlices`, `scheduleIdleWork` | Распределение тяжелой работы по фреймам |
+| Category | Functions | Use case |
+|----------|-----------|----------|
+| **Renderer** | `createOptimizedRenderer`, `applyPixelRatioCap`, `DynamicResolutionGovernor` | Create and tune the renderer |
+| **Geometry** | `estimateGeometryBudget`, `createStaticBatchedGroup`, `createInstancedDecorations`, `freezeStaticObjectTree` | Geometry and draw-call optimization |
+| **Materials** | `downgradeMaterial`, `applyMaterialDowngrade`, `clampTextureAnisotropy`, `auditTransparentMaterials` | Distance-based material downgrade |
+| **Shadows** | `configureRendererShadows`, `fitDirectionalShadowCamera`, `applyShadowProxiesToMap`, `buildLowPolyProxyGeometry` | Shadow optimization |
+| **Raycasting** | `createPickProxy`, `raycastPickProxies` | Invisible pick colliders |
+| **Loading** | `createOptimizedGLTFLoader`, `optimizeLoadedGLTFScene`, `disposeMaterial`, `disposeObject3D` | Load and free GPU memory |
+| **Analysis** | `estimateSceneComplexity`, `cleanupScene` | Scene complexity and full cleanup |
+| **Scheduling** | `runWorkInSlices`, `scheduleIdleWork` | Spread heavy work across frames |
 
 ---
 
-### 🎯 Примеры использования
+### Usage examples
 
-**Создание оптимизированного рендера:**
+**Create an optimized renderer:**
 ```typescript
 const renderer = createOptimizedRenderer(document.body, {
   maxPixelRatio: 1.5,
@@ -61,71 +61,71 @@ const renderer = createOptimizedRenderer(document.body, {
 });
 ```
 
-**Автоматическое снижение разрешения при падении FPS:**
+**Auto lower resolution when FPS drops:**
 ```typescript
 const dprGov = new DynamicResolutionGovernor(renderer, {
   lowFps: 30,
   highFps: 56,
 });
 
-// В цикле рендеринга:
+// In the render loop:
 dprGov.tick(currentFps);
 ```
 
-**Замораживание статичной геометрии:**
+**Freeze static geometry:**
 ```typescript
 freezeStaticObjectTree(cityProps, { skipSkinned: true });
 ```
 
-**Деградация материалов по дистанции:**
+**Distance-based material downgrade:**
 ```typescript
 applyMaterialDowngrade(scene, {
   cameraPosition: camera.position,
-  backdropDistance: 40,  // Дальше 40 юнитов → BACKDROP
-  heroNames: ['character'],  // Не трогать эти
+  backdropDistance: 40,
+  heroNames: ['character'],
 });
 ```
 
-**Создание тень-прокси для тяжелых мешей:**
+**Shadow proxies for heavy meshes:**
 ```typescript
 applyShadowProxiesToMap(scene, camera, { minTriangles: 5000 });
 ```
 
-**Правильная очистка GPU памяти:**
+**Proper GPU memory cleanup:**
 ```typescript
 disposeObject3D(oldModel, { scene, removeFromParent: true });
 ```
 
-**Распределение тяжелой работы по фреймам:**
+**Spread heavy work across frames:**
 ```typescript
 await runWorkInSlices([
   () => processMaterials(mesh),
   () => applyQuality(mesh),
-], 6);  // 6ms на слайс
+], 6);
 ```
 
 ---
 
-### ✨ Ключевые особенности
+### Highlights
 
-- ✅ **38 функций + 2 класса** готовы к использованию
-- ✅ **Полная типизация** — все параметры и возвращаемые значения типизированы
-- ✅ **Константы** — `PROXY_LAYER`, `MaterialTier`, `DEFAULT_MAX_ANISOTROPY`
-- ✅ **Нет изменений** в физике, анимации и таймлайне
-- ✅ **Документация** — `USAGE_GUIDE.md` с примерами для каждой функции
-- ✅ **Экспорты** — доступны из `src/render/` и `src/render/sceneOptim/`
+- 38 functions + 2 classes ready to use
+- Fully typed parameters and return values
+- Constants: `PROXY_LAYER`, `MaterialTier`, `DEFAULT_MAX_ANISOTROPY`
+- Does not change physics, animation, or timeline
+- See `USAGE_GUIDE.md` for per-function examples
+- Exported from `src/render/` and `src/render/sceneOptim/`
 
 ---
 
-### 📖 Документация
+### Documentation
 
-Полный гайд с примерами см. в:
+Full guide with examples:
 ```
 src/render/sceneOptim/USAGE_GUIDE.md
 ```
 
 ---
 
-### 🎬 Готово к использованию!
+### Ready to use
 
-Все утилиты полностью интегрированы и готовы к применению в вашем проекте. Начните с импорта нужных функций и применяйте по необходимости для оптимизации сцены.
+Import the functions you need and apply them to optimize your scene.

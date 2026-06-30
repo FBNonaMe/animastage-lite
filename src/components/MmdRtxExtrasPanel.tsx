@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Bookmark, CloudRain, RotateCcw } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Bookmark, CloudRain, RotateCcw, Wrench } from 'lucide-react';
 import type { CameraSnapshot, MmdLiteConfig, VisualFxSettings, WeatherPresetId } from '../types';
 import {
   addCameraBookmark,
@@ -16,6 +16,7 @@ import {
   type MmdPhysicsQualityPreset,
 } from '../utils/mmdPhysicsPresets';
 import { MMD_WEATHER_PRESETS, applyMmdWeatherPreset } from '../visualFx/mmdWeatherPresets';
+import { shouldSuggestFixPhysics } from '../physics/physicsStabilitySystem';
 
 interface MmdRtxExtrasPanelProps {
   visualFx: VisualFxSettings;
@@ -25,6 +26,7 @@ interface MmdRtxExtrasPanelProps {
   captureCamera: () => CameraSnapshot | null;
   onFlyToBookmark?: (snapshot: CameraSnapshot) => void;
   onRestartPhysics?: () => void;
+  onFixPhysics?: () => void;
 }
 
 export default function MmdRtxExtrasPanel({
@@ -35,8 +37,17 @@ export default function MmdRtxExtrasPanel({
   captureCamera,
   onFlyToBookmark,
   onRestartPhysics,
+  onFixPhysics,
 }: MmdRtxExtrasPanelProps) {
   const [bookmarks, setBookmarks] = useState<CameraBookmark[]>(() => loadCameraBookmarks());
+  const [suggestFix, setSuggestFix] = useState(false);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setSuggestFix(shouldSuggestFixPhysics());
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const persistBookmarks = useCallback((next: CameraBookmark[]) => {
     setBookmarks(next);
@@ -123,6 +134,21 @@ export default function MmdRtxExtrasPanel({
           </button>
         ))}
       </div>
+      {onFixPhysics && (
+        <button
+          type="button"
+          onClick={onFixPhysics}
+          className="w-full flex items-center justify-center gap-1.5 text-[9px] font-bold py-1.5 rounded border border-emerald-500/40 bg-emerald-950/25 text-emerald-200 hover:bg-emerald-950/40 cursor-pointer"
+        >
+          <Wrench className="w-3 h-3" />
+          Fix Physics
+        </button>
+      )}
+      {suggestFix && onFixPhysics && (
+        <p className="text-[8px] text-amber-400/90 leading-relaxed">
+          Physics instability detected — try Fix Physics.
+        </p>
+      )}
       {onRestartPhysics && (
         <button
           type="button"
@@ -130,7 +156,7 @@ export default function MmdRtxExtrasPanel({
           className="w-full flex items-center justify-center gap-1.5 text-[9px] font-bold py-1.5 rounded border border-purple-500/35 text-purple-300 hover:bg-purple-950/30 cursor-pointer"
         >
           <RotateCcw className="w-3 h-3" />
-          Reload Bullet physics
+          Reload physics (full)
         </button>
       )}
 

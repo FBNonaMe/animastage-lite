@@ -95,6 +95,10 @@ export default function MmdBrowserLandingPage({ onStart, onStartDemo, onStartDem
             MMD Online
           </a>
           {' · '}
+          <a href="/roadmap" className="text-cyan-400 hover:text-cyan-300 font-semibold">
+            Full guide
+          </a>
+          {' · '}
           <a href="/about" className="text-cyan-400 hover:text-cyan-300">
             About official project
           </a>

@@ -8,9 +8,13 @@ export {
 export {
   shouldDeferPhysicsForModel,
   shouldUseLiteRenderForModel,
+  shouldSimulatePhysicsForModel,
+  shouldCastShadowForModel,
+  resolveModelCharacterQuality,
+  isMultiCharacterScene,
 } from './multiModelPolicy';
 export { registerCharacterRoot, resolveHeadTargetForCamera, resolveDuoHeadTargetForCamera, getRegisteredCharacterCount, computeDuoFovBoost } from './characterHeadRegistry';
-export { patchStateForMultiCharacterLoad } from './multiCharacterPerf';
+export { patchStateForMultiCharacterLoad, syncMultiCharacterScenePerf } from './multiCharacterPerf';
 export {
   resolveCameraFramingFromModels,
   getStageTargetTuple,
