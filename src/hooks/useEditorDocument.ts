@@ -3,11 +3,16 @@ import type { AppState, MMDModel, TimelineKeyframe, TimelineTrackId } from '../t
 import { createEmptyKeyframes, mergeTimelineKeyframes } from '../components/TimelineLogic';
 import { createDefaultLayers } from '../editor/animationLayers';
 import type { useClipEditor } from './useClipEditor';
+import type { useGlobalUndo } from './useGlobalUndo';
 import { buildVmdFromTimeline, downloadVmd } from '../editor/vmdExport';
 import { analyzeLoadedMesh } from '../analyzer/analyzeModel';
+import { runCisPipeline, type CisReport } from '../cis';
+import type { ApisReport } from '../apis';
+import { registerCharacterProfile } from '../product/vcs/applyVcs';
 import { stepPlayhead } from './useEditorKeyboard';
 
 type ClipEditor = ReturnType<typeof useClipEditor>;
+type GlobalUndo = ReturnType<typeof useGlobalUndo>;
 
 function markDirty(models: MMDModel[], modelId: string | null): MMDModel[] {
   if (!modelId) return models;
@@ -18,6 +23,7 @@ export function useEditorDocument(
   appState: AppState,
   setAppState: React.Dispatch<React.SetStateAction<AppState>>,
   clipEditor: ClipEditor,
+  globalUndo: GlobalUndo,
   handlers: {
     setCurrentFrame: (f: number) => void;
     setIsPlaying: (p: boolean) => void;
@@ -36,6 +42,7 @@ export function useEditorDocument(
 
   const updateModelKeyframes = useCallback(
     (modelId: string, keyframes: TimelineKeyframe[], commit = true) => {
+      if (commit) globalUndo.record(appStateRef.current);
       setAppState((prev) => ({
         ...prev,
         models: markDirty(
@@ -51,26 +58,38 @@ export function useEditorDocument(
         ),
       }));
     },
-    [setAppState, clipEditor]
+    [setAppState, clipEditor, globalUndo]
   );
 
+  const recordGlobalState = useCallback(() => {
+    globalUndo.record(appStateRef.current);
+  }, [globalUndo]);
+
   const handleUndo = useCallback(() => {
+    if (globalUndo.canUndo()) {
+      setAppState((s) => globalUndo.undo(s) ?? s);
+      return;
+    }
     if (!selectedId || !selectedModel) return;
     const prev = clipEditor.applyUndo(selectedModel.keyframes);
     setAppState((s) => ({
       ...s,
       models: s.models.map((m) => (m.id === selectedId ? { ...m, keyframes: prev } : m)),
     }));
-  }, [selectedId, selectedModel, clipEditor, setAppState]);
+  }, [selectedId, selectedModel, clipEditor, setAppState, globalUndo]);
 
   const handleRedo = useCallback(() => {
+    if (globalUndo.canRedo()) {
+      setAppState((s) => globalUndo.redo(s) ?? s);
+      return;
+    }
     if (!selectedId || !selectedModel) return;
     const next = clipEditor.applyRedo(selectedModel.keyframes);
     setAppState((s) => ({
       ...s,
       models: s.models.map((m) => (m.id === selectedId ? { ...m, keyframes: next } : m)),
     }));
-  }, [selectedId, selectedModel, clipEditor, setAppState]);
+  }, [selectedId, selectedModel, clipEditor, setAppState, globalUndo]);
 
   const handleCopy = useCallback(() => {
     if (!selectedModel) return;
@@ -97,6 +116,7 @@ export function useEditorDocument(
       bones: selectedModel.bones,
       morphs: selectedModel.morphs,
       clipName: selectedModel.name,
+      nativeBezier: appState.sceneDirector?.vmdNativeBezier !== false,
     });
     downloadVmd(buf, `${selectedModel.name.replace(/\s+/g, '_')}.vmd`);
     setAppState((prev) => ({
@@ -105,10 +125,11 @@ export function useEditorDocument(
         m.id === selectedModel.id ? { ...m, clipDirty: false } : m
       ),
     }));
-  }, [selectedModel, appState.maxFrames, setAppState]);
+  }, [selectedModel, appState.maxFrames, appState.sceneDirector?.vmdNativeBezier, setAppState]);
 
   const handleNewClip = useCallback(() => {
     if (!selectedId) return;
+    globalUndo.record(appState);
     setAppState((prev) => ({
       ...prev,
       models: prev.models.map((m) =>
@@ -126,7 +147,8 @@ export function useEditorDocument(
       isPlaying: false,
     }));
     clipEditor.clearUndo();
-  }, [selectedId, setAppState, clipEditor]);
+    globalUndo.clear();
+  }, [selectedId, appState, setAppState, clipEditor, globalUndo]);
 
   const handleSimplifyTrack = useCallback(() => {
     const track = appState.timelineActiveTrack;
@@ -211,8 +233,15 @@ export function useEditorDocument(
       }
 
       try {
-        let pmxBuffer = opts?.pmxBuffer ?? pmxBufferCacheRef.current.get(modelId) ?? null;
-        if (!pmxBuffer && opts?.fileMap && opts?.modelFileName) {
+        const fileName = opts?.modelFileName ?? '';
+        const wantsPmxParse =
+          /\.pm[xd]$/i.test(fileName) &&
+          !/\.(glb|gltf|vrm|fbx|obj)$/i.test(fileName);
+
+        let pmxBuffer = wantsPmxParse
+          ? (opts?.pmxBuffer ?? pmxBufferCacheRef.current.get(modelId) ?? null)
+          : null;
+        if (!pmxBuffer && wantsPmxParse && opts?.fileMap && opts?.modelFileName) {
           const key = opts.modelFileName.toLowerCase();
           const rawUrl = opts.fileMap[key] ?? opts.fileMap[opts.modelFileName];
           const fetchUrl = rawUrl?.split('#')[0];
@@ -298,16 +327,95 @@ export function useEditorDocument(
         };
       });
 
+      setAppState((prev) => registerCharacterProfile(prev, modelId, meta.bones, mesh ?? null));
+
       if (mesh) {
+        const existingModel = appStateRef.current.models.find((m) => m.id === modelId);
+
+        setAppState((prev) => ({
+          ...prev,
+          models: prev.models.map((m) =>
+            m.id === modelId
+              ? {
+                  ...m,
+                  cisReport: {
+                    status: 'analyzing',
+                    profile: null,
+                    userSummary: {
+                      imported: false,
+                      healthPercent: 0,
+                      physicsLabel: 'Analyzing…',
+                      performanceLabel: '…',
+                      visualQualityLabel: '…',
+                      ready: false,
+                      headline: 'Character Intelligence',
+                    },
+                  } satisfies CisReport,
+                }
+              : m
+          ),
+        }));
+
         if (analysisTimerRef.current) clearTimeout(analysisTimerRef.current);
         analysisTimerRef.current = setTimeout(() => {
           analysisTimerRef.current = null;
           const model = appStateRef.current.models.find((m) => m.id === modelId);
-          void runModelAnalysis(modelId, mesh, {
-            fileMap: model?.fileMap,
-            modelFileName: model?.modelFileName,
+          if (!model) return;
+
+          void (async () => {
+            const format = model.modelFormat ?? 'mmd';
+            const fileName = model.modelFileName ?? '';
+            const wantsPmxParse =
+              format === 'mmd' &&
+              /\.pm[xd]$/i.test(fileName) &&
+              !/\.(glb|gltf|vrm|fbx|obj)$/i.test(fileName);
+
+            let pmxBuffer: ArrayBuffer | null = null;
+            if (wantsPmxParse) {
+              pmxBuffer = pmxBufferCacheRef.current.get(modelId) ?? null;
+              if (!pmxBuffer && model.fileMap && model.modelFileName) {
+                const key = model.modelFileName.toLowerCase();
+                const rawUrl = model.fileMap[key] ?? model.fileMap[model.modelFileName];
+                const fetchUrl = rawUrl?.split('#')[0];
+                if (fetchUrl?.startsWith('blob:')) {
+                  pmxBuffer = await fetch(fetchUrl).then((r) => r.arrayBuffer());
+                  if (pmxBuffer) pmxBufferCacheRef.current.set(modelId, pmxBuffer);
+                }
+              }
+            }
+
+            const cisReport = await runCisPipeline(mesh, {
+              modelId,
+              modelFileName: model.modelFileName,
+              modelFormat: format,
+              contentFingerprint: model.contentFingerprint,
+              fileMap: model.fileMap,
+              pmxBuffer,
+              pmxByteSize: pmxBuffer?.byteLength,
+              applyRepairs: true,
+            });
+
+            const profile = cisReport.profile;
+            analysisTokenRef.current = `${modelId}:${mesh.uuid}`;
+
+            setAppState((prev) => ({
+              ...prev,
+              models: prev.models.map((m) =>
+                m.id === modelId
+                  ? {
+                      ...m,
+                      cisReport,
+                      modelAnalysis: profile?.modelAnalysis ?? m.modelAnalysis,
+                      umceReport: profile?.umceReport ?? m.umceReport,
+                      apisReport: profile?.apisReport ?? m.apisReport,
+                    }
+                  : m
+              ),
+            }));
+          })().catch((err) => {
+            console.warn('[CIS] Failed:', err);
           });
-        }, 600);
+        }, 400);
       }
     },
     [setAppState, runModelAnalysis]
@@ -320,9 +428,46 @@ export function useEditorDocument(
     [setAppState]
   );
 
+  const handleApisReportUpdate = useCallback(
+    (modelId: string, patch: Partial<ApisReport>) => {
+      setAppState((prev) => ({
+        ...prev,
+        models: prev.models.map((m) => {
+          if (m.id !== modelId) return m;
+          const base = m.apisReport ?? {
+            status: 'analyzing' as const,
+            modelHash: patch.modelHash ?? '',
+            profile: null,
+            userSummary: {
+              hair: 'Pending',
+              cloth: 'Pending',
+              accessories: 'Pending',
+              simulation: 'Analyzing',
+              performance: '—',
+              optimized: false,
+            },
+          };
+          const merged = { ...base, ...patch };
+          return {
+            ...m,
+            apisReport: merged,
+            cisReport: m.cisReport?.profile
+              ? {
+                  ...m.cisReport,
+                  profile: { ...m.cisReport.profile, apisReport: merged },
+                }
+              : m.cisReport,
+          };
+        }),
+      }));
+    },
+    [setAppState]
+  );
+
   return {
     handleUndo,
     handleRedo,
+    recordGlobalState,
     handleCopy,
     handlePaste,
     handleMirrorPaste,
@@ -335,6 +480,7 @@ export function useEditorDocument(
     handlePatchKeyframe,
     handleDeleteAtPlayhead,
     handlePmxMetadata,
+    handleApisReportUpdate,
     handleSelectPmxBone,
     runModelAnalysis,
     updateModelKeyframes,

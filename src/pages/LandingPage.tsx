@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import SeoHead from '../components/SeoHead';
 import OfficialProjectBlock from '../landing/OfficialProjectBlock';
 import GooglePlayButton from '../landing/GooglePlayButton';
@@ -26,57 +26,97 @@ import {
   Shield,
   Sparkles,
   ExternalLink,
-  Download,
-  Spline,
-  Library,
-  ScanSearch,
-  LayoutGrid,
   Share2,
   RotateCcw,
   Flame,
   Check,
+  Clapperboard,
+  Monitor,
+  CloudSun,
+  LayoutDashboard,
+  Sun,
+  Film,
+  Bookmark,
 } from 'lucide-react';
 import LandingHeroMockup from './landing/LandingHeroMockup';
 import FlowDiagram from './landing/FlowDiagram';
 import DemoGalleryGrid from './landing/DemoGalleryGrid';
 import ConversionBridge from './landing/ConversionBridge';
+import WhatsNewSection from './landing/WhatsNewSection';
+import LandingScrollProgress from './landing/LandingScrollProgress';
+
 interface LandingPageProps {
   onStart: () => void;
   onStartDemo: () => void;
+  onStartCreator?: () => void;
   onStartDemoGallery?: () => void;
   onStartDemoId?: (demoId: string) => void;
 }
 
-const CORE_FEATURES = [
-  { icon: Upload, title: 'Load PMX / PMD + VMD', desc: 'Drop your folder — see your character move in one step.' },
-  { icon: Play, title: 'Real-time playback', desc: 'Watch dances instantly — no desktop MMD required.' },
-  { icon: Video, title: 'MP4 export', desc: 'Ship Shorts or widescreen video from the same tab.' },
-  { icon: Smartphone, title: 'Android app', desc: 'On Google Play — portrait studio on your phone, same PMX/VMD tools as the browser.' },
-] as const;
-
-const ADVANCED_FEATURES = [
-  { icon: Spline, title: 'Curve Editor', desc: 'Edit motion like pro tools — smooth curves, precise timing.' },
-  { icon: Library, title: 'Pose Library', desc: 'Strike a pose in one click — great for thumbnails and streams.' },
-  { icon: ScanSearch, title: 'Model Analyzer', desc: 'Catch broken textures and lag before you hit record.' },
-  { icon: LayoutGrid, title: 'Demo Gallery', desc: 'Try a full scene instantly — zero files to hunt down.' },
+/** Features shipping on both browser and Android. */
+const SHARED_PLATFORM = [
+  {
+    icon: Upload,
+    title: 'PMX / PMD / VMD',
+    desc: 'Load characters and motion — folder, ZIP, or drag & drop.',
+  },
+  {
+    icon: LayoutDashboard,
+    title: 'UI 3.0 Studio',
+    desc: 'Redesigned shell — Scene Studio, FX inspector, multi-tab timeline.',
+  },
+  {
+    icon: Sun,
+    title: 'Scene Studio 2.0',
+    desc: 'Mood presets, time of day, weather, and stackable scene FX.',
+  },
+  {
+    icon: Film,
+    title: 'Cinematic FX',
+    desc: 'HDR bloom, color grade, SSR, vignette, and lens dispersion.',
+  },
+  {
+    icon: Clapperboard,
+    title: 'Director Workflow',
+    desc: 'Cast, clips, music sync, effect timeline with keyframes.',
+  },
+  {
+    icon: Bookmark,
+    title: 'Smart Pose',
+    desc: 'IK-style pose presets merged into the Pose Library.',
+  },
+  {
+    icon: CloudSun,
+    title: 'Dynamic Sky',
+    desc: '24h environment — time of day, weather, Environment Studio.',
+  },
+  {
+    icon: Video,
+    title: 'MP4 export',
+    desc: 'Shorts 1080×1920 or widescreen — same pipeline on phone.',
+  },
 ] as const;
 
 const FAQ = [
   {
-    q: 'What is MMD online?',
-    a: 'Run MikuMikuDance-style workflows in the browser — PMX, VMD, timeline, and export without installing desktop MMD.',
+    q: 'Is this a demo or a full studio?',
+    a: 'Full studio. Open Studio on the web or install the Android app — import models, edit motion/FX/camera, run mocap, bake physics-aware looks, and export MP4. Sample scenes are optional starter packs, not the product limit.',
   },
   {
-    q: 'Is this a PMX viewer or a full studio?',
-    a: 'Both. Preview instantly, then edit with curves, poses, analyzer, and MP4 export — MMD without install.',
+    q: 'What is new in v1.4?',
+    a: 'UI 3.0 Studio with Scene Studio 2.0, Cinematic FX (HDR bloom, grade, SSR, vignette, lens), Anime NPR, Path Tracer Lab with OIDN denoise, Director Workflow, Smart Pose presets, WHAM mocap, OpenRouter AI, Dynamic Sky, and a CapCut-style Android dock.',
+  },
+  {
+    q: 'Is the Android app the same as the website?',
+    a: `Yes — same AnimaStage Lite engine. Web is landscape-friendly; Android v${ANDROID_RELEASE.version} is portrait (vertical) for Shorts. UI 3.0, Scene Studio, Cinematic FX, Director, mocap, and MP4 export ship on both.`,
   },
   {
     q: 'Are files uploaded to a server?',
-    a: 'Core editing is client-side. Your models stay on your device.',
+    a: 'Core editing is client-side. Your models stay on your device — browser or phone. Optional OpenRouter / WHAM server URLs are only used if you configure them.',
   },
   {
-    q: 'Is there an Android app?',
-    a: `Yes — v${ANDROID_RELEASE.version} on Google Play (${ANDROID_RELEASE.orientation.toLowerCase()}). Same PMX/VMD studio as the browser. Optional sideload APK on this site for advanced users.`,
+    q: 'Where do I get Android?',
+    a: `Google Play (recommended) or optional sideload APK. Min ${ANDROID_RELEASE.minAndroid}.`,
   },
 ] as const;
 
@@ -113,10 +153,37 @@ function SectionLabel({ children }: { children: ReactNode }) {
 export default function LandingPage({
   onStart,
   onStartDemo,
+  onStartCreator,
   onStartDemoGallery,
   onStartDemoId,
 }: LandingPageProps) {
+  const [activeNav, setActiveNav] = useState<string>('hero');
   const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+
+  useEffect(() => {
+    document.documentElement.classList.add('landing-scroll-root');
+    const ids = ['whats-new', 'features', 'platforms', 'samples', 'flow', 'android', 'faq'];
+    const onScroll = () => {
+      const y = window.scrollY + 120;
+      let current = 'hero';
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        if (el && el.offsetTop <= y) current = id;
+      }
+      setActiveNav(current);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      document.documentElement.classList.remove('landing-scroll-root');
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
+  const navCls = (id: string) =>
+    `hover:text-white cursor-pointer transition-colors ${
+      activeNav === id ? 'text-cyan-300 font-semibold' : ''
+    }`;
 
   const homeJsonLd = [
     {
@@ -130,26 +197,28 @@ export default function LandingPage({
     },
     buildSoftwareApplicationSchema(
       SITE_URL,
-      'Official AnimaStage Lite — MMD online browser studio with WebGL, WASM physics, PMX/VMD, MP4 export.'
+      'Official AnimaStage Lite — full MMD studio for browser and Android. UI 3.0, Scene Studio 2.0, Cinematic FX, Director Workflow, PMX/VMD, MP4 export.'
     ),
     buildOrganizationSchema(),
   ];
 
   return (
-    <div className="w-full overflow-x-hidden landing-mesh text-zinc-100 font-sans antialiased">
+    <div className="w-full min-h-screen overflow-x-hidden overflow-y-visible landing-mesh text-zinc-100 font-sans antialiased">
       <SeoHead
-        title="Run MMD in Your Browser — No Install | AnimaStage Lite"
-        description="Official AnimaStage Lite — MMD online in your browser. PMX viewer, VMD player, WebGL + WASM physics, MP4 export. Google Play Android app. Free · client-side."
+        title="AnimaStage Lite — UI 3.0 MMD Studio for Web & Android"
+        description="Full browser + Android MMD studio. UI 3.0, Scene Studio 2.0, Cinematic FX, Anime NPR, Path Tracer Lab, Director Workflow, Dynamic Sky, WHAM mocap, OpenRouter AI. Free · client-side · not a demo."
         canonical={SITE_URL}
-        keywords="MMD online, MMD Android, MikuMikuDance browser, run MMD on phone, PMX viewer online, WebMMD official"
+        keywords="MMD studio, UI 3.0, Scene Studio, Cinematic FX, MikuMikuDance browser, AnimaStage Lite, Path Tracer"
         ogUrl={SITE_URL}
         jsonLd={homeJsonLd}
       />
-      {/* Header */}
+
+      <LandingScrollProgress nextSectionId="whats-new" />
+
       <header className="sticky top-0 z-50 border-b border-white/5 glass-panel-strong">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <a href="/" className="flex items-center gap-2 shrink-0">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500/30 to-violet-500/20 border border-white/10 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500/30 to-teal-500/20 border border-white/10 flex items-center justify-center">
               <Play className="w-4 h-4 text-cyan-300 fill-cyan-300" />
             </div>
             <span className="font-display font-bold text-lg tracking-tight">
@@ -157,48 +226,43 @@ export default function LandingPage({
             </span>
           </a>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm text-zinc-400">
+          <nav className="hidden lg:flex items-center gap-5 text-sm text-zinc-400">
             <a href="/roadmap" className="hover:text-cyan-300 text-cyan-400/90 font-semibold transition-colors">
-              Full guide
+              Guide
             </a>
-            <button type="button" onClick={() => scrollTo('demo')} className="hover:text-white cursor-pointer transition-colors">
-              Demo
+            <button type="button" onClick={() => scrollTo('whats-new')} className={navCls('whats-new')}>
+              New in 1.4
             </button>
-            <button type="button" onClick={() => scrollTo('flow')} className="hover:text-white cursor-pointer transition-colors">
-              Flow
-            </button>
-            <button type="button" onClick={() => scrollTo('features')} className="hover:text-white cursor-pointer transition-colors">
+            <button type="button" onClick={() => scrollTo('features')} className={navCls('features')}>
               Features
             </button>
-            <button type="button" onClick={() => scrollTo('android')} className="hover:text-white cursor-pointer transition-colors">
-              Android
+            <button type="button" onClick={() => scrollTo('platforms')} className={navCls('platforms')}>
+              Web &amp; Android
+            </button>
+            <button type="button" onClick={() => scrollTo('samples')} className={navCls('samples')}>
+              Samples
+            </button>
+            <button type="button" onClick={() => scrollTo('android')} className={navCls('android')}>
+              Download
             </button>
             <a href="/about" className="hover:text-white transition-colors">
               About
             </a>
-            {SEO_LANDING_ROUTES.map((r) => (
-              <a key={r.path} href={r.path} className="hover:text-white transition-colors">
-                {r.label}
-              </a>
-            ))}
-            <button type="button" onClick={() => scrollTo('official')} className="hover:text-white cursor-pointer transition-colors">
-              Official
-            </button>
             <a href="https://github.com/FBNonaMe/animastage-lite" target="_blank" rel="noreferrer" className="hover:text-white inline-flex items-center gap-1 transition-colors">
               <Github className="w-4 h-4" />
               GitHub
             </a>
           </nav>
 
-          <div className="flex items-center gap-2 shrink-0 md:hidden">
+          <div className="flex items-center gap-2 shrink-0 lg:hidden">
             <GooglePlayButton size="compact" className="!text-xs !py-2 !px-3" />
-            <PrimaryBtn onClick={onStartDemo} className="!text-sm !py-2 !px-4">
-              Try Demo
+            <PrimaryBtn onClick={onStart} className="!text-sm !py-2 !px-4">
+              Open Studio
             </PrimaryBtn>
           </div>
-          <div className="hidden md:block">
-            <PrimaryBtn onClick={onStartDemo} className="!text-sm !py-2 !px-4">
-              Try Demo
+          <div className="hidden lg:block">
+            <PrimaryBtn onClick={onStart} className="!text-sm !py-2 !px-4">
+              Open Studio
             </PrimaryBtn>
           </div>
         </div>
@@ -206,23 +270,32 @@ export default function LandingPage({
       </header>
 
       <main>
-        {/* §1 Hero */}
-        <section className="relative pt-12 pb-16 md:pt-20 md:pb-24 overflow-hidden">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+        <section id="hero" className="relative pt-10 pb-14 md:pt-16 md:pb-20 overflow-hidden min-h-[min(92vh,880px)] flex items-center">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 w-full">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               <div className="text-center lg:text-left">
-                <SectionLabel>MMD online · WebGL + WASM</SectionLabel>
+                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-3">
+                  <SectionLabel>Full studio · Web + Android · v{ANDROID_RELEASE.version}</SectionLabel>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-full px-2.5 py-0.5 -mt-3">
+                    Not a demo
+                  </span>
+                </div>
 
-                <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-[3.25rem] leading-[1.05] tracking-tight text-white mb-5">
-                  Run MMD in Your Browser — No Install
+                <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-[3.35rem] leading-[1.05] tracking-tight text-white mb-5">
+                  AnimaStage Lite
                 </h1>
+                <p className="font-display text-xl sm:text-2xl text-cyan-100/90 mb-4 tracking-tight">
+                  UI 3.0 — MMD Studio for browser &amp; phone
+                </p>
 
                 <p className="text-lg text-zinc-400 leading-relaxed max-w-xl mx-auto lg:mx-0 mb-4">
-                  Load PMX + VMD, preview animations instantly, and export video — in the browser or on{' '}
-                  <a
-                    href="/mmd-android"
-                    className="text-emerald-400/90 hover:text-emerald-300 font-medium underline-offset-2 hover:underline"
-                  >
+                  Scene Studio moods, cinematic post-FX, anime NPR, director workflow,
+                  WHAM mocap, and MP4 Shorts — same product on the{' '}
+                  <button type="button" onClick={onStart} className="text-cyan-400 hover:text-cyan-300 font-medium underline-offset-2 hover:underline cursor-pointer">
+                    web
+                  </button>{' '}
+                  and{' '}
+                  <a href="/mmd-android" className="text-emerald-400/90 hover:text-emerald-300 font-medium underline-offset-2 hover:underline">
                     Google Play
                   </a>
                   .
@@ -232,17 +305,27 @@ export default function LandingPage({
                   href="/roadmap"
                   className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-400/90 hover:text-cyan-300 mb-8 mx-auto lg:mx-0 transition-colors"
                 >
-                  New here? Read the full browser &amp; Android guide →
+                  Browser &amp; Android guide →
                 </a>
 
                 <div className="flex flex-col sm:flex-row flex-wrap gap-3 justify-center lg:justify-start mb-5">
-                  <PrimaryBtn onClick={onStartDemo}>
-                    <Sparkles className="w-4 h-4" />
-                    Try Demo — Free
+                  {onStartCreator ? (
+                    <button
+                      type="button"
+                      onClick={onStartCreator}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 via-cyan-500 to-sky-400 hover:from-teal-400 hover:via-cyan-400 hover:to-sky-300 text-zinc-950 font-bold text-base sm:text-lg px-8 py-4 shadow-xl shadow-cyan-500/20 transition-all cursor-pointer w-full sm:w-auto"
+                    >
+                      <Sparkles className="w-5 h-5" />
+                      Create My First Video
+                    </button>
+                  ) : null}
+                  <PrimaryBtn onClick={onStart}>
+                    <Play className="w-4 h-4 fill-current" />
+                    Open Studio — Free
                   </PrimaryBtn>
-                  <GhostBtn onClick={onStart}>
-                    <Upload className="w-4 h-4 text-cyan-400" />
-                    Upload Your Model
+                  <GhostBtn onClick={() => scrollTo('whats-new')}>
+                    <Clapperboard className="w-4 h-4 text-cyan-400" />
+                    See what&apos;s new
                   </GhostBtn>
                   <GooglePlayButton size="compact" />
                 </div>
@@ -250,11 +333,16 @@ export default function LandingPage({
                 <div className="flex flex-col gap-2 mb-4">
                   <p className="text-sm text-zinc-300 flex items-center justify-center lg:justify-start gap-2">
                     <Shield className="w-4 h-4 text-emerald-400 shrink-0" />
-                    Runs locally in your browser — no upload to our servers
+                    Runs locally — no account, no upload to our servers
                   </p>
-                  <p className="text-xs text-cyan-400/90 font-medium flex items-center justify-center lg:justify-start gap-2">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400 landing-pulse-dot" />
-                    Instant animation in ~2 seconds
+                  <p className="text-xs text-zinc-500 flex items-center justify-center lg:justify-start gap-2 flex-wrap">
+                    <Monitor className="w-3.5 h-3.5 text-cyan-400/80 shrink-0" />
+                    Web · landscape / desktop
+                    <span className="text-zinc-700">·</span>
+                    <Smartphone className="w-3.5 h-3.5 text-emerald-400/80 shrink-0" />
+                    Android · portrait Shorts
+                    <span className="text-zinc-700">·</span>
+                    Open source on GitHub
                   </p>
                 </div>
               </div>
@@ -266,19 +354,107 @@ export default function LandingPage({
 
         <OfficialProjectBlock />
 
-        {/* §2 Instant Demo */}
-        <section id="demo" className="py-16 md:py-20 scroll-mt-16 border-t border-white/5">
+        <WhatsNewSection onOpenStudio={onStart} />
+
+        {/* Shared Web + Android features */}
+        <section id="features" className="py-16 md:py-20 scroll-mt-16 border-t border-white/5">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-12">
+              <SectionLabel>What ships today</SectionLabel>
+              <h2 className="font-display font-bold text-3xl sm:text-4xl text-white mb-3">
+                Same studio on Web &amp; Android
+              </h2>
+              <p className="text-zinc-400 text-sm sm:text-base max-w-2xl mx-auto">
+                UI 3.0 Studio, Scene Studio 2.0, Cinematic FX, Director Workflow, and CapCut-style mobile UI —
+                available in the browser and the Play app.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+              {SHARED_PLATFORM.map((f) => (
+                <div key={f.title} className="glass-panel rounded-2xl p-6">
+                  <f.icon className="w-6 h-6 text-cyan-400 mb-4" strokeWidth={1.5} />
+                  <h3 className="font-semibold text-white mb-1.5">{f.title}</h3>
+                  <p className="text-sm text-zinc-500 leading-relaxed">{f.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="glass-panel rounded-2xl p-5 sm:p-6 border-cyan-500/20 mb-8">
+              <p className="text-xs font-bold uppercase tracking-wider text-cyan-300/90 mb-3">
+                Latest across platforms · v{ANDROID_RELEASE.version}
+              </p>
+              <ul className="grid sm:grid-cols-2 gap-2">
+                {ANDROID_RELEASE.whatsNew.map((line) => (
+                  <li key={line} className="flex items-start gap-2 text-sm text-zinc-300">
+                    <Check className="w-3.5 h-3.5 text-cyan-400 mt-0.5 shrink-0" aria-hidden />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-3">
+              <PrimaryBtn onClick={onStart}>Open Studio</PrimaryBtn>
+              <GooglePlayButton size="compact" />
+            </div>
+          </div>
+        </section>
+
+        {/* Platform split */}
+        <section id="platforms" className="py-16 md:py-20 border-t border-white/5 bg-zinc-950/40 scroll-mt-16">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-10">
+              <SectionLabel>Two surfaces · one product</SectionLabel>
+              <h2 className="font-display font-bold text-3xl sm:text-4xl text-white">
+                Pick Web or Android — same tools
+              </h2>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="glass-panel rounded-2xl p-6 border-cyan-500/20">
+                <Monitor className="w-8 h-8 text-cyan-400 mb-4" />
+                <h3 className="font-display font-bold text-xl text-white mb-2">Web studio</h3>
+                <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
+                  Full UI 3.0 layout for desktop &amp; landscape. Scene Studio moods, Lighting Studio,
+                  Cinematic FX stack, Path Tracer Lab, and multi-track timeline.
+                </p>
+                <ul className="space-y-2 text-sm text-zinc-500 mb-6">
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-cyan-400 shrink-0" /> Chrome / Edge · WebGL2</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-cyan-400 shrink-0" /> 16:9 + 9:16 export</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-cyan-400 shrink-0" /> No install</li>
+                </ul>
+                <PrimaryBtn onClick={onStart} className="w-full sm:w-auto">
+                  Open in browser
+                </PrimaryBtn>
+              </div>
+              <div className="glass-panel rounded-2xl p-6 border-emerald-500/25">
+                <Smartphone className="w-8 h-8 text-emerald-400 mb-4" />
+                <h3 className="font-display font-bold text-xl text-white mb-2">Android app</h3>
+                <p className="text-sm text-zinc-400 mb-4 leading-relaxed">
+                  Portrait shell for Shorts. CapCut-style bottom dock — Scene, FX, Camera, Timeline.
+                  Same Scene Studio, Cinematic FX, import, and MP4 share sheet as the site.
+                </p>
+                <ul className="space-y-2 text-sm text-zinc-500 mb-6">
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /> Google Play · v{ANDROID_RELEASE.version}</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /> {ANDROID_RELEASE.orientation}</li>
+                  <li className="flex gap-2"><Check className="w-4 h-4 text-emerald-400 shrink-0" /> {ANDROID_RELEASE.minAndroid}</li>
+                </ul>
+                <GooglePlayButton />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Sample scenes — secondary */}
+        <section id="samples" className="py-16 md:py-20 scroll-mt-16 border-t border-white/5">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="text-center max-w-2xl mx-auto mb-10">
-              <SectionLabel>Demo Gallery</SectionLabel>
+              <SectionLabel>Optional sample scenes</SectionLabel>
               <h2 className="font-display font-bold text-3xl sm:text-4xl text-white mb-3">
-                See it in action in seconds
+                Peek at the studio with built-in packs
               </h2>
               <p className="text-zinc-400 text-sm sm:text-base mb-1">
-                No setup. No files needed. Just click and watch.
-              </p>
-              <p className="text-cyan-400/90 text-sm font-medium">
-                Click any demo → see animation instantly in the studio
+                Starter scenes if you want a quick look — not required. Your own models are the main path.
               </p>
             </div>
 
@@ -288,43 +464,42 @@ export default function LandingPage({
 
             <div className="mt-8 space-y-4">
               <div className="flex flex-wrap justify-center gap-3">
-                <PrimaryBtn onClick={onStartDemo}>Try featured demo</PrimaryBtn>
+                <GhostBtn onClick={onStartDemo}>Load sample scene</GhostBtn>
                 {onStartDemoGallery && (
-                  <GhostBtn onClick={onStartDemoGallery}>Browse all in studio</GhostBtn>
+                  <GhostBtn onClick={onStartDemoGallery}>Browse samples in studio</GhostBtn>
                 )}
+                <PrimaryBtn onClick={onStart}>Open empty studio</PrimaryBtn>
               </div>
 
               <div className="glass-panel rounded-xl p-4 sm:p-5 border-amber-500/20 text-center">
                 <p className="text-base font-semibold text-zinc-100 mb-3 flex items-center justify-center gap-2">
                   <Flame className="w-4 h-4 text-amber-400" aria-hidden />
-                  Your turn — try your own model
+                  Already have PMX / GLB?
                 </p>
                 <GhostBtn onClick={onStart} className="mx-auto">
                   <Upload className="w-4 h-4 text-amber-400" />
-                  Upload PMX/VMD
+                  Import now
                 </GhostBtn>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Conversion bridge — primary funnel */}
         <section className="py-10 md:py-12 px-4 sm:px-6 border-t border-white/5 bg-zinc-950/50">
           <div className="max-w-3xl mx-auto">
             <ConversionBridge onUpload={onStart} variant="prominent" />
           </div>
         </section>
 
-        {/* New to MMD? */}
         <section className="py-12 border-t border-white/5">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-            <SectionLabel>New to MMD?</SectionLabel>
-            <h2 className="font-display font-bold text-2xl text-white mb-8">Start here — three steps</h2>
+            <SectionLabel>Get started</SectionLabel>
+            <h2 className="font-display font-bold text-2xl text-white mb-8">Three steps to your first clip</h2>
             <div className="grid sm:grid-cols-3 gap-4 text-left">
               {[
-                { step: '1', title: 'Try demo', desc: 'Pick a scene — motion plays in ~2s', action: onStartDemo, cta: 'Open demo' },
-                { step: '2', title: 'Upload model', desc: 'Drop PMX + VMD when you are ready', action: onStart, cta: 'Upload files' },
-                { step: '3', title: 'Export video', desc: 'MP4 for Shorts or YouTube', action: onStart, cta: 'Go to studio' },
+                { step: '1', title: 'Open Studio', desc: 'UI 3.0 — browser or Android app', action: onStart, cta: 'Launch' },
+                { step: '2', title: 'Scene & motion', desc: 'Scene Studio mood + VMD or WHAM mocap', action: onStart, cta: 'Build scene' },
+                { step: '3', title: 'Look & export', desc: 'Cinematic FX / NPR → MP4 Shorts', action: onStart, cta: 'Go export' },
               ].map((item) => (
                 <button
                   key={item.step}
@@ -342,15 +517,14 @@ export default function LandingPage({
           </div>
         </section>
 
-        {/* §3 User flow */}
         <section id="flow" className="py-16 md:py-20 border-t border-white/5 bg-zinc-950/40 scroll-mt-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
-            <SectionLabel>Perfect user flow</SectionLabel>
+            <SectionLabel>Production flow</SectionLabel>
             <h2 className="font-display font-bold text-3xl sm:text-4xl text-white mb-2">
-              From idea to video in under a minute
+              From import to Shorts in one session
             </h2>
             <p className="text-zinc-500 text-sm mb-10 max-w-lg mx-auto">
-              Demo → upload → analyze → edit → preview → export → share
+              Studio → Scene Studio mood → motion → Cinematic FX → Director clips → MP4 → share
             </p>
             <FlowDiagram />
             <div className="mt-10 max-w-md mx-auto">
@@ -359,54 +533,12 @@ export default function LandingPage({
           </div>
         </section>
 
-        {/* §4 Features */}
-        <section id="features" className="py-16 md:py-20 scroll-mt-16">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6">
-            <div className="text-center mb-12">
-              <SectionLabel>Features</SectionLabel>
-              <h2 className="font-display font-bold text-3xl sm:text-4xl text-white">
-                Everything for MMD without install
-              </h2>
-            </div>
-
-            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-4">Core</h3>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-              {CORE_FEATURES.map((f) => (
-                <div key={f.title} className="glass-panel rounded-2xl p-6">
-                  <f.icon className="w-6 h-6 text-cyan-400 mb-4" strokeWidth={1.5} />
-                  <h4 className="font-semibold text-white mb-1.5">{f.title}</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <h3 className="text-sm font-bold text-violet-400/90 uppercase tracking-wider mb-4">Advanced</h3>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {ADVANCED_FEATURES.map((f) => (
-                <div
-                  key={f.title}
-                  className="glass-panel rounded-2xl p-6 border-violet-500/10 hover:border-violet-500/25 transition-colors"
-                >
-                  <f.icon className="w-6 h-6 text-violet-400 mb-4" strokeWidth={1.5} />
-                  <h4 className="font-semibold text-white mb-1.5">{f.title}</h4>
-                  <p className="text-sm text-zinc-500 leading-relaxed">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-center mt-10">
-              <PrimaryBtn onClick={onStartDemo}>Try Demo — Free</PrimaryBtn>
-            </div>
-          </div>
-        </section>
-
-        {/* §5 Why */}
         <section id="why" className="py-16 md:py-20 border-t border-white/5 scroll-mt-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-10">
               <SectionLabel>Why we built this</SectionLabel>
               <h2 className="font-display font-bold text-3xl sm:text-4xl text-white">
-                MMD is powerful, but difficult to set up
+                Full MMD workflow — without the install maze
               </h2>
             </div>
 
@@ -420,10 +552,10 @@ export default function LandingPage({
                 </ul>
               </div>
               <div className="glass-panel rounded-2xl p-6 border-cyan-500/20 bg-cyan-950/10">
-                <h3 className="font-semibold text-cyan-100 mb-4">Our approach</h3>
+                <h3 className="font-semibold text-cyan-100 mb-4">AnimaStage Lite</h3>
                 <p className="text-sm text-zinc-300 leading-relaxed mb-4">
-                  We made MikuMikuDance workflows run <strong className="text-white">entirely in the browser</strong> —
-                  PMX viewer online, VMD player browser, timeline, and Shorts export in one tab.
+                  A <strong className="text-white">real studio</strong> in the browser and on Android —
+                  Scene Studio moods, cinematic FX, director workflow, and MP4 export in one product.
                 </p>
                 <PrimaryBtn onClick={onStart} className="!text-sm w-full sm:w-auto">
                   Open Studio
@@ -433,7 +565,6 @@ export default function LandingPage({
           </div>
         </section>
 
-        {/* §6 Export & Share */}
         <section id="export" className="py-16 md:py-20 border-t border-white/5 bg-zinc-950/30 scroll-mt-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-6">
             <div className="grid lg:grid-cols-2 gap-10 items-center">
@@ -443,7 +574,7 @@ export default function LandingPage({
                   Create and share animations anywhere
                 </h2>
                 <p className="text-zinc-400 text-sm leading-relaxed mb-4">
-                  Record MP4 from the viewport. Clean frame — no gizmos in the final clip.
+                  Record MP4 from the viewport. Clean frame — no gizmos in the final clip. Same export path on Web and Android Share.
                 </p>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-violet-300 bg-violet-500/15 border border-violet-500/30 rounded-full px-3 py-1 mb-6">
                   Perfect for Shorts / Reels
@@ -468,7 +599,7 @@ export default function LandingPage({
                 <div className="glass-panel rounded-2xl p-4 w-40 sm:w-48 aspect-video flex flex-col items-center justify-center opacity-80">
                   <span className="text-[10px] font-mono text-zinc-500 mb-2">16:9</span>
                   <Video className="w-9 h-9 text-cyan-400/50" />
-                  <span className="text-xs text-zinc-500 mt-2">YouTube</span>
+                  <span className="text-xs text-zinc-500 mt-2">YouTube · Web</span>
                 </div>
                 <div className="relative glass-panel rounded-2xl w-[120px] sm:w-[132px] aspect-[9/16] border-violet-500/40 shadow-lg shadow-violet-950/50 overflow-hidden">
                   <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-start">
@@ -485,7 +616,7 @@ export default function LandingPage({
                   <div className="absolute bottom-0 left-0 right-0 p-3 text-center">
                     <Smartphone className="w-6 h-6 text-white mx-auto mb-1 opacity-90" />
                     <p className="text-[10px] font-semibold text-white">TikTok · Reels</p>
-                    <p className="text-[9px] text-violet-200 mt-0.5">Vertical MP4</p>
+                    <p className="text-[9px] text-violet-200 mt-0.5">Android + Web</p>
                   </div>
                 </div>
               </div>
@@ -493,7 +624,6 @@ export default function LandingPage({
           </div>
         </section>
 
-        {/* §7 Growth loop */}
         <section className="py-16 md:py-20 border-t border-white/5">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
             <SectionLabel>Growth loop</SectionLabel>
@@ -501,13 +631,12 @@ export default function LandingPage({
               Create → Export → Share → Repeat
             </h2>
             <p className="text-zinc-400 text-sm leading-relaxed mb-8 max-w-lg mx-auto">
-              Make a clip, post it, send friends to AnimaStage Lite. Optional end-card watermark helps others discover
-              MMD online — your dance, your model, one link to try it themselves.
+              Make a clip on Web or Android, post it, send friends the same link. One product, two apps.
             </p>
             <div className="grid sm:grid-cols-4 gap-3 text-left mb-8">
               {[
-                { icon: Sparkles, title: 'Create', desc: 'Demo or your PMX' },
-                { icon: Video, title: 'Export', desc: 'MP4 in one tab' },
+                { icon: Sparkles, title: 'Create', desc: 'Your PMX / GLB' },
+                { icon: Video, title: 'Export', desc: 'MP4 in studio' },
                 { icon: Share2, title: 'Share', desc: 'Shorts, Discord, X' },
                 { icon: RotateCcw, title: 'Repeat', desc: 'Back to studio' },
               ].map((item) => (
@@ -518,14 +647,9 @@ export default function LandingPage({
                 </div>
               ))}
             </div>
-            <p className="text-xs text-zinc-500 glass-panel inline-block rounded-lg px-4 py-2 border border-white/5">
-              Tip: mention <strong className="text-zinc-400">animastage-lite.app</strong> in your description — optional
-              &quot;Made with AnimaStage Lite&quot; watermark coming to export settings.
-            </p>
           </div>
         </section>
 
-        {/* § Android download */}
         <section id="android" className="py-16 md:py-20 border-t border-white/5 bg-emerald-950/10 scroll-mt-16">
           <div className="max-w-4xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-10">
@@ -538,7 +662,7 @@ export default function LandingPage({
                 <strong className="text-zinc-200 font-semibold">Google Play</strong> — the same
                 editor as animastage-lite.app, packaged for portrait WebView.{' '}
                 <a href="/roadmap" className="text-emerald-400 hover:text-emerald-300 font-semibold">
-                  Full tutorial (browser + Android) →
+                  Full tutorial →
                 </a>
                 {' · '}
                 <a href="/mmd-android" className="text-cyan-400 hover:text-cyan-300 font-semibold">
@@ -558,7 +682,6 @@ export default function LandingPage({
                     <span className="text-xs font-mono text-zinc-400">
                       v{ANDROID_RELEASE.version} (build {ANDROID_RELEASE.versionCode})
                     </span>
-                    <span className="text-xs text-zinc-600 hidden sm:inline">·</span>
                     <span className="text-xs text-zinc-500">{ANDROID_RELEASE.buildLabel}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 mb-4">
@@ -579,8 +702,8 @@ export default function LandingPage({
                     AnimaStage Lite — portrait studio
                   </h3>
                   <p className="text-sm text-zinc-400 leading-relaxed max-w-xl">
-                    Available on Google Play. Opens directly into the editor: PMX/PMD/VMD import, timeline,
-                    Camera Studio, and MP4 export — 100% client-side.
+                    Opens into UI 3.0: Scene Studio, timeline, Cinematic FX, Path Tracer Lab, MP4 via Share —
+                    100% client-side.
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
@@ -596,7 +719,7 @@ export default function LandingPage({
 
               <div className="rounded-xl border border-emerald-500/15 bg-emerald-950/20 p-4 sm:p-5 mb-6">
                 <p className="text-xs font-bold uppercase tracking-wider text-emerald-300/90 mb-3">
-                  What&apos;s new in v{ANDROID_RELEASE.version}
+                  What&apos;s new (Web + Android)
                 </p>
                 <ul className="grid sm:grid-cols-2 gap-2">
                   {ANDROID_RELEASE.whatsNew.map((line) => (
@@ -667,7 +790,6 @@ export default function LandingPage({
           </div>
         </section>
 
-        {/* FAQ compact */}
         <section id="faq" className="py-12 border-t border-white/5 scroll-mt-16">
           <div className="max-w-xl mx-auto px-4 sm:px-6 space-y-3">
             <h2 className="font-display font-bold text-xl text-center text-white mb-6">FAQ</h2>
@@ -683,23 +805,23 @@ export default function LandingPage({
           </div>
         </section>
 
-        {/* §8 Final CTA */}
         <section className="py-20 md:py-28 border-t border-white/5 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 via-transparent to-violet-500/10 pointer-events-none" />
           <div className="max-w-2xl mx-auto px-4 text-center relative">
             <h2 className="font-display font-bold text-3xl sm:text-4xl text-white mb-4">
-              Start creating in seconds — no install required
+              Open the studio — Web or Android
             </h2>
             <p className="text-zinc-400 mb-8 max-w-md mx-auto">
-              Try a demo in ~2 seconds, or upload PMX/VMD when you are ready. Free in the browser.
+              Scene Studio, Cinematic FX, Director, mocap, MP4. Free. Client-side.
+              Built for real Shorts production.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <PrimaryBtn onClick={onStartDemo}>
-                <Sparkles className="w-4 h-4" />
-                Try Demo
+              <PrimaryBtn onClick={onStart}>
+                <Play className="w-4 h-4 fill-current" />
+                Open Studio
               </PrimaryBtn>
               <GhostBtn onClick={onStart}>
-                Open Studio
+                Import model
                 <ChevronRight className="w-5 h-5" />
               </GhostBtn>
             </div>
@@ -707,6 +829,10 @@ export default function LandingPage({
             <p className="mt-2 text-xs text-zinc-600">
               <button type="button" onClick={() => scrollTo('android')} className="hover:text-zinc-400 cursor-pointer">
                 Install guide &amp; sideload APK
+              </button>
+              {' · '}
+              <button type="button" onClick={onStartDemo} className="hover:text-zinc-400 cursor-pointer">
+                Optional sample scene
               </button>
             </p>
           </div>
@@ -718,7 +844,7 @@ export default function LandingPage({
         <p className="text-[11px] text-zinc-600 mb-4 max-w-md mx-auto">{OFFICIAL_PROJECT.statement}</p>
         <nav className="flex flex-wrap justify-center gap-x-3 gap-y-1 mb-3" aria-label="Footer">
           <a href="/roadmap" className="text-cyan-400/90 hover:text-cyan-300 font-semibold">
-            Full guide
+            Guide
           </a>
           <a href="/about" className="text-zinc-400 hover:text-cyan-400">
             About

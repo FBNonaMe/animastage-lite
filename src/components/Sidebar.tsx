@@ -5,10 +5,11 @@ import {
   Sliders,
   Wrench,
   Camera,
+  Clapperboard,
 } from 'lucide-react';
-import type { AppState, MmdLiteConfig, PhysicsMode } from '../types';
+import type { AppState, MmdLiteConfig, PhysicsMode, SceneBackgroundSettings, VisualFxSettings } from '../types';
 import type { MobilePanelTab } from '../hooks/useStudioLayout';
-import type { ProcessedMMDFiles } from '../utils/mmdFiles';
+import type { ProcessedMMDFiles, ProcessedVmdFiles } from '../utils/mmdFiles';
 import type { PoseSnapshotV1 } from '../pose/poseTypes';
 import type { AnimationLayerDef, TimelineKeyframe } from '../types';
 import type { SceneGraphState } from '../product/ux/sceneGraph';
@@ -17,6 +18,7 @@ import LoadSection from './sidebar/LoadSection';
 import SceneSection from './sidebar/SceneSection';
 import ControlsSection from './sidebar/ControlsSection';
 import AdvancedSection from './sidebar/AdvancedSection';
+import ComposerSection from './sidebar/ComposerSection';
 import MobileCameraTab from './mobile/MobileCameraTab';
 
 interface SidebarProps {
@@ -31,6 +33,9 @@ interface SidebarProps {
   onRegisterKeyframe: (modelId: string) => void;
   onLoadModel: (preset: 'miku' | 'kizuna' | 'custom') => void;
   onLoadCustomModel: (data: ProcessedMMDFiles) => void;
+  attachVmdTargetModelId?: string | null;
+  onAttachVmd?: (modelId: string, vmd: ProcessedVmdFiles) => void;
+  onInstallStylePack?: (files: File[]) => void | Promise<void>;
   setPhysicsMode: (mode: PhysicsMode) => void;
   onSetVmdPlaybackEnabled: (modelId: string, enabled: boolean) => void;
   onPatchMmdLite: (patch: Partial<MmdLiteConfig>) => void;
@@ -68,10 +73,21 @@ interface SidebarProps {
   onSceneGraphCreateGroup?: () => void;
   onSetCameraMode?: (mode: AppState['cameraMode']) => void;
   onToggleManualCameraLock?: () => void;
+  onEnterDirectCameraMode?: () => void;
+  onOpenCineStudio?: () => void;
+  onOpenReferenceCameraStudio?: () => void;
   mobileTab?: MobilePanelTab;
   onMobileTabChange?: (tab: MobilePanelTab) => void;
   /** Pro Mobile bottom sheet — no tabs/header chrome */
   proMobileSheet?: boolean;
+  onSetVisualFx?: (patch: Partial<VisualFxSettings>) => void;
+  onPatchSceneComposer?: (patch: Partial<import('../sceneComposer').SceneComposerState>) => void;
+  onReplaceSceneComposer?: (next: import('../sceneComposer').SceneComposerState) => void;
+  onPatchSceneBackground?: (patch: Partial<SceneBackgroundSettings>) => void;
+  onImportBackgroundModel?: (data: import('../utils/mmdFiles').ProcessedMMDFiles | import('../utils/mmdFiles').ProcessedMMDFiles[]) => void;
+  getViewportCanvas?: () => HTMLCanvasElement | null;
+  captureViewportFrame?: () => string | null;
+  invalidateViewport?: () => void;
 }
 
 export default function Sidebar({
@@ -86,6 +102,9 @@ export default function Sidebar({
   onRegisterKeyframe,
   onLoadModel,
   onLoadCustomModel,
+  attachVmdTargetModelId = null,
+  onAttachVmd,
+  onInstallStylePack,
   setPhysicsMode,
   onSetVmdPlaybackEnabled,
   onPatchMmdLite,
@@ -122,9 +141,20 @@ export default function Sidebar({
   onSceneGraphCreateGroup,
   onSetCameraMode,
   onToggleManualCameraLock,
+  onEnterDirectCameraMode,
+  onOpenCineStudio,
+  onOpenReferenceCameraStudio,
   mobileTab: mobileTabProp,
   onMobileTabChange,
   proMobileSheet = false,
+  onSetVisualFx,
+  onPatchSceneComposer,
+  onReplaceSceneComposer,
+  onPatchSceneBackground,
+  onImportBackgroundModel,
+  getViewportCanvas,
+  captureViewportFrame,
+  invalidateViewport,
 }: SidebarProps) {
   const [internalTab, setInternalTab] = useState<MobilePanelTab>('scene');
   const mobileTab = mobileTabProp ?? internalTab;
@@ -168,7 +198,8 @@ export default function Sidebar({
           <div className="mobile-panel-tabs" role="tablist">
             {(
               [
-                ['scene', 'Scene', Layers],
+                ['scene', 'Objects', Layers],
+                ['composer', 'Scene', Clapperboard],
                 ['control', 'Control', Sliders],
                 ['camera', 'Camera', Camera],
               ] as const
@@ -196,6 +227,9 @@ export default function Sidebar({
           <LoadSection
             onLoadModel={onLoadModel}
             onLoadCustomModel={onLoadCustomModel}
+            attachVmdTargetModelId={attachVmdTargetModelId}
+            onAttachVmd={onAttachVmd}
+            onInstallStylePack={onInstallStylePack}
             onLoadDemo={onLoadDemo}
             onOpenDemoGallery={onOpenDemoGallery}
             demoLoadingId={demoLoadingId}
@@ -203,7 +237,7 @@ export default function Sidebar({
           />
         </CollapsibleSection>
 
-        <CollapsibleSection title="Scene" defaultOpen icon={<Layers className="w-4 h-4" />}>
+        <CollapsibleSection title="Scene Graph" defaultOpen icon={<Layers className="w-4 h-4" />}>
           <SceneSection
             appState={appState}
             sceneGraph={sceneGraph}
@@ -217,14 +251,84 @@ export default function Sidebar({
             onLoadModel={onLoadModel}
           />
         </CollapsibleSection>
+
+        {!isMobile && (onOpenCineStudio || onOpenReferenceCameraStudio) ? (
+          <CollapsibleSection title="Cinematography" defaultOpen icon={<Clapperboard className="w-4 h-4" />}>
+            <div className="space-y-2 px-1">
+              <p className="text-[9px] text-zinc-500 leading-relaxed m-0">
+                Cine Studio (VCS) and Reference Camera Studio — directing tools, not on the viewport chrome.
+              </p>
+              <div className="flex items-center gap-2 text-[9px]">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    appState.vcs?.enabled ? 'bg-emerald-400' : 'bg-zinc-600'
+                  }`}
+                />
+                <span className="text-zinc-400">
+                  VCS {appState.vcs?.enabled ? 'активен' : 'выключен'}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {onOpenCineStudio ? (
+                  <Button type="button" variant="primary" className="w-full text-[10px]" onClick={onOpenCineStudio}>
+                    <Clapperboard className="w-3.5 h-3.5" />
+                    Открыть Cine Studio
+                  </Button>
+                ) : null}
+                {onOpenReferenceCameraStudio ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full text-[10px]"
+                    onClick={onOpenReferenceCameraStudio}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    Reference Camera Studio
+                  </Button>
+                ) : null}
+                {onEnterDirectCameraMode ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full text-[10px]"
+                    onClick={onEnterDirectCameraMode}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    Move Cam + Gizmo
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </CollapsibleSection>
+        ) : null}
           </>
         )}
+
+        {onSetVisualFx &&
+        onPatchSceneComposer &&
+        onReplaceSceneComposer &&
+        (!isMobile || mobileTab === 'composer' || (proMobileSheet && mobileTab === 'scene')) ? (
+          <ComposerSection
+            appState={appState}
+            onSetVisualFx={onSetVisualFx}
+            onPatchComposer={onPatchSceneComposer}
+            onReplaceComposer={onReplaceSceneComposer}
+            onPatchSceneBackground={onPatchSceneBackground}
+            onImportBackgroundModel={onImportBackgroundModel}
+            getViewportCanvas={getViewportCanvas}
+            captureViewportFrame={captureViewportFrame}
+            invalidateViewport={invalidateViewport}
+          />
+        ) : null}
 
         {isMobile && mobileTab === 'camera' && onSetCameraMode && onToggleManualCameraLock ? (
           <MobileCameraTab
             appState={appState}
             onSetCameraMode={onSetCameraMode}
             onToggleManualLock={onToggleManualCameraLock}
+            onEnterDirectCameraMode={onEnterDirectCameraMode}
+            onOpenCineStudio={onOpenCineStudio}
+            onOpenReferenceCameraStudio={onOpenReferenceCameraStudio}
           />
         ) : null}
 

@@ -24,6 +24,7 @@ import {
   PARTICLE_PRESET_LABELS,
   SCENE_PRESETS,
 } from '../visualFx/visualFxPresets';
+import LutControls from './postfx/LutControls';
 import { RENDER_TIER_CONFIG } from '../render/renderTierConfig';
 import type { RenderTier } from '../types';
 import { isRtxFeatureAvailable } from '../utils/platform';
@@ -282,10 +283,11 @@ export default function VisualFxPanel({
           <span className="text-[10px] font-bold text-zinc-400">Color Grade</span>
           <select
             value={fx.colorGrade}
+            disabled={Boolean(fx.customLutUrl) && fx.customLutEnabled !== false}
             onChange={(e) =>
               onSetVisualFx({ colorGrade: e.target.value as ColorGradePresetId })
             }
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-md text-xs px-2 py-1.5 text-zinc-200"
+            className="w-full bg-zinc-900 border border-zinc-700 rounded-md text-xs px-2 py-1.5 text-zinc-200 disabled:opacity-50"
           >
             {Object.values(COLOR_GRADES).map((g) => (
               <option key={g.id} value={g.id}>
@@ -294,6 +296,7 @@ export default function VisualFxPanel({
             ))}
           </select>
         </label>
+        <LutControls visualFx={fx} onSetVisualFx={onSetVisualFx} compact showBuiltInGrade={false} />
         <label className="flex items-center justify-between text-[10px] font-bold text-zinc-400 cursor-pointer">
           <span>Depth of Field (Bokeh)</span>
           <input

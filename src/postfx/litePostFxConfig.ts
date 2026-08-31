@@ -1,6 +1,7 @@
 import type { ViewportFormat, VisualFxSettings } from '../types';
 import type { RtxSettings } from '../utils/rtxSettings';
 import { isPortraitFormat } from '../utils/characterQuality';
+import { isCinemaRenderCapture } from '../video/recordingCapture';
 
 export interface LitePostFxTuning {
   enableComposer: boolean;
@@ -11,6 +12,7 @@ export interface LitePostFxTuning {
   dof: boolean;
   vignette: boolean;
   chromatic: boolean;
+  colorGrade: boolean;
   ssaoIntensity: number;
   ssaoRadius: number;
   ssaoResolutionScale: number;
@@ -30,6 +32,8 @@ export function getLitePostFxTuning(
   const portrait = isPortraitFormat(viewportFormat);
   const rtxLive = rtxModeEnabled && !pauseRtx;
   const master = visualFx.postFxStackEnabled !== false;
+  const colorGradeActive = visualFx.colorGrade != null && visualFx.colorGrade !== 'neutral';
+  const cinema = isCinemaRenderCapture();
   const cinematic =
     master &&
     (visualFx.ssaoEnabled === true ||
@@ -37,9 +41,12 @@ export function getLitePostFxTuning(
       visualFx.bloomEnabled === true ||
       visualFx.dofEnabled === true ||
       visualFx.vignetteEnabled === true ||
-      rtxLive);
+      colorGradeActive ||
+      rtxLive ||
+      cinema);
 
-  if (portrait) {
+  // Cinema Render unlocks the full post stack even on 9:16 — quality over speed.
+  if (portrait && !cinema) {
     return {
       enableComposer: master && (visualFx.smaaEnabled !== false || visualFx.vignetteEnabled === true),
       ssao: false,
@@ -49,6 +56,7 @@ export function getLitePostFxTuning(
       dof: false,
       vignette: visualFx.vignetteEnabled === true,
       chromatic: false,
+      colorGrade: colorGradeActive,
       ssaoIntensity: 0,
       ssaoRadius: 0.28,
       ssaoResolutionScale: 0.5,
@@ -62,23 +70,22 @@ export function getLitePostFxTuning(
 
   return {
     enableComposer: cinematic,
-    /** SSAO only when explicitly on — avoids composer init races on template apply. */
-    ssao: visualFx.ssaoEnabled === true && master,
+    ssao: (visualFx.ssaoEnabled === true || cinema) && master,
     smaa: visualFx.smaaEnabled !== false,
-    /** God rays disabled — unstable with @react-three/postprocessing (null material.alpha). */
-    godRays: false,
-    bloom: visualFx.bloomEnabled === true || rtxLive,
+    godRays: visualFx.godRaysEnabled === true && master,
+    bloom: visualFx.bloomEnabled === true || rtxLive || cinema,
     dof: visualFx.dofEnabled === true,
     vignette: visualFx.vignetteEnabled !== false,
     chromatic: (visualFx.chromaticAberration ?? 0) > 0.0001,
-    ssaoIntensity: visualFx.ssaoIntensity ?? (rtxLive ? 1.8 : 1.1),
+    colorGrade: colorGradeActive || cinema,
+    ssaoIntensity: visualFx.ssaoIntensity ?? (rtxLive || cinema ? 1.8 : 1.1),
     ssaoRadius: visualFx.ssaoRadius ?? 0.32,
-    ssaoResolutionScale: visualFx.ssaoHalfRes !== false ? 0.5 : 1,
+    ssaoResolutionScale: cinema ? 1 : visualFx.ssaoHalfRes !== false ? 0.5 : 1,
     godRaysSamples: visualFx.godRaysSamples ?? 24,
     godRaysDensity: visualFx.godRaysDensity ?? 0.65,
     godRaysDecay: visualFx.godRaysDecay ?? 0.94,
-    bloomIntensityMul: rtxLive ? 0.42 : 1,
-    multisampling: 0,
+    bloomIntensityMul: rtxLive ? 0.42 : cinema ? 0.85 : 1,
+    multisampling: cinema ? 4 : 0,
   };
 }
 
@@ -93,7 +100,9 @@ export function resolveBloomParams(
     (rtxLive
       ? Math.min(rtxBloom, visualFx.bloomIntensity * tuning.bloomIntensityMul)
       : visualFx.bloomIntensity) * tuning.bloomIntensityMul;
-  const threshold = Math.max(rtxLive ? 0.88 : 0.72, visualFx.bloomThreshold);
+  const threshold = rtxLive
+    ? Math.max(0.88, visualFx.bloomThreshold)
+    : Math.max(0.38, visualFx.bloomThreshold ?? 0.48);
   return {
     intensity,
     threshold,

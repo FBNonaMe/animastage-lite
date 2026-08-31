@@ -1,8 +1,13 @@
 import JSZip from 'jszip';
+import { isStylePackBundle } from '../stylePacks/validate';
+import {
+  inferAssetKindFromName,
+  sortByAssetKind,
+} from './assetModelKind';
 import {
   buildFileMapFromFiles,
   classifyVmdFiles,
-  createMMDTextureManager,
+  createAssetBundleLoadingManager,
   getFileRelativePath,
   processVmdFiles,
   type ProcessedMMDFiles,
@@ -20,20 +25,30 @@ export const ASSET_TEX_EXTS = new Set([
   'ktx',
   'ktx2',
   'dds',
+  'tif',
+  'tiff',
+  'exr',
   'spa',
   'sph',
 ]);
 
 /** Character + map mesh formats (mmd_rtx ingest). */
-export const ASSET_MODEL_EXTS = new Set(['pmx', 'pmd', 'glb', 'gltf', 'obj']);
+export const ASSET_MODEL_EXTS = new Set(['pmx', 'pmd', 'fbx', 'glb', 'gltf', 'obj', 'vrm']);
 
-/** MMD characters — only these load into MMDModelWrapper. */
+/** MMD characters — load into MMDModelWrapper. */
 export const MMD_CHARACTER_EXTS = new Set(['pmx', 'pmd']);
+
+/** Generic 3D assets — FBX / GLB / GLTF / VRM / OBJ (+ sidecar textures). */
+export const GENERIC_MODEL_EXTS = new Set(['fbx', 'glb', 'gltf', 'vrm', 'obj']);
+
+/** @deprecated use GENERIC_MODEL_EXTS */
+export const FBX_CHARACTER_EXTS = new Set(['fbx']);
 
 export interface AssetBundleStats {
   total: number;
   models: number;
   mmdCharacters: number;
+  genericModels: number;
   textures: number;
   mtls: number;
   vmds: number;
@@ -44,6 +59,7 @@ export interface IngestedAssetBundle {
   all: File[];
   models: File[];
   mmdCharacters: File[];
+  genericModels: File[];
   textures: File[];
   mtls: File[];
   hdrs: File[];
@@ -60,7 +76,8 @@ export type ProcessedImportResult =
       skippedFormats: string[];
     }
   | { kind: 'vmd_only'; vmd: ProcessedVmdFiles }
-  | { kind: 'hdr_only'; hdrFiles: File[] };
+  | { kind: 'hdr_only'; hdrFiles: File[] }
+  | { kind: 'style_pack' };
 
 function fileRelPath(file: File): string {
   const rel = getFileRelativePath(file);
@@ -76,6 +93,11 @@ export function getAssetExtension(file: File): string {
     if (!path) continue;
     if (path.endsWith('.pmx')) return 'pmx';
     if (path.endsWith('.pmd')) return 'pmd';
+    if (path.endsWith('.fbx')) return 'fbx';
+    if (path.endsWith('.glb')) return 'glb';
+    if (path.endsWith('.gltf')) return 'gltf';
+    if (path.endsWith('.obj')) return 'obj';
+    if (path.endsWith('.vrm')) return 'vrm';
     if (path.endsWith('.vmd')) return 'vmd';
     if (path.endsWith('.hdr')) return 'hdr';
     if (path.endsWith('.zip')) return 'zip';
@@ -103,6 +125,13 @@ async function looksLikeZipArchive(file: File): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function genericModelFormat(file: File): 'fbx' | 'gltf' | 'obj' {
+  const ext = getAssetExtension(file);
+  if (ext === 'fbx') return 'fbx';
+  if (ext === 'obj') return 'obj';
+  return 'gltf';
 }
 
 function modelSortKey(file: File): string {
@@ -203,11 +232,13 @@ export async function ingestAssetBundle(
   });
 
   const mmdCharacters = uniqueModels.filter((f) => MMD_CHARACTER_EXTS.has(getAssetExtension(f)));
+  const genericModels = uniqueModels.filter((f) => GENERIC_MODEL_EXTS.has(getAssetExtension(f)));
 
   return {
     all,
     models: uniqueModels,
     mmdCharacters,
+    genericModels,
     textures,
     mtls,
     hdrs,
@@ -216,6 +247,7 @@ export async function ingestAssetBundle(
       total: all.length,
       models: uniqueModels.length,
       mmdCharacters: mmdCharacters.length,
+      genericModels: genericModels.length,
       textures: textures.length,
       mtls: mtls.length,
       vmds: vmds.length,
@@ -276,14 +308,23 @@ export async function processImportedAssets(
   }
 
   const bundle = await ingestAssetBundle(files, onProgress);
-  const { mmdCharacters, models, hdrs, vmds, all, stats } = bundle;
+  const { mmdCharacters, genericModels, models, hdrs, vmds, all, stats } = bundle;
+  const characterCount = mmdCharacters.length + genericModels.length;
 
-  if (mmdCharacters.length === 0 && vmds.length === 0 && hdrs.length === 0) {
-    const nonMmd = models.filter((f) => !MMD_CHARACTER_EXTS.has(getAssetExtension(f)));
-    if (nonMmd.length > 0) {
+  if (isStylePackBundle(all)) {
+    return { kind: 'style_pack' };
+  }
+
+  if (characterCount === 0 && vmds.length === 0 && hdrs.length === 0) {
+    const nonCharacter = models.filter(
+      (f) =>
+        !MMD_CHARACTER_EXTS.has(getAssetExtension(f)) &&
+        !GENERIC_MODEL_EXTS.has(getAssetExtension(f))
+    );
+    if (nonCharacter.length > 0) {
       return {
         error:
-          'Found .glb/.gltf/.obj but no .pmx/.pmd. MMD characters need .pmx or .pmd (other formats are for map props in the reference viewer).',
+          'Found unsupported mesh format. Use .pmx/.pmd/.fbx/.glb/.gltf/.vrm/.obj with textures in the same folder/ZIP.',
       };
     }
     const extHint = [...new Set(all.map(getAssetExtension).filter(Boolean))].slice(0, 10);
@@ -291,20 +332,20 @@ export async function processImportedAssets(
       extHint.length > 0
         ? ` Found ${stats.total} file(s) — types: ${extHint.join(', ')}.`
         : stats.total > 0
-          ? ` Found ${stats.total} file(s) but none are .pmx/.pmd.`
+          ? ` Found ${stats.total} file(s) but none are .pmx/.pmd/.fbx/.glb/.gltf/.vrm/.obj.`
           : '';
     return {
-      error: `Please drop at least one .pmd or .pmx model file.${hint}`,
+      error: `Please drop at least one model file (.pmd, .pmx, .fbx, .glb, .gltf, .vrm, or .obj) with textures.${hint}`,
     };
   }
 
-  if (mmdCharacters.length === 0 && vmds.length > 0) {
+  if (characterCount === 0 && vmds.length > 0) {
     const vmd = await processVmdFiles(vmds);
     if ('error' in vmd) return vmd;
     return { kind: 'vmd_only', vmd };
   }
 
-  if (mmdCharacters.length === 0 && hdrs.length > 0) {
+  if (characterCount === 0 && hdrs.length > 0) {
     return { kind: 'hdr_only', hdrFiles: hdrs };
   }
 
@@ -313,15 +354,15 @@ export async function processImportedAssets(
   const motionSources =
     motionVmds.length > 0 ? motionVmds : vmds.filter((file) => file !== cameraVmd);
 
-  const manager = createMMDTextureManager(fileMap);
-  const vmdPerModel = distributeMotionVmds(mmdCharacters.length, motionSources, fileMap);
+  const manager = createAssetBundleLoadingManager(fileMap);
+  const vmdPerMmd = distributeMotionVmds(mmdCharacters.length, motionSources, fileMap);
 
   const cameraVmdBlobUrl = cameraVmd
     ? `${fileMap[cameraVmd.name.toLowerCase()]}#${cameraVmd.name}`
     : null;
 
-  const processed: ProcessedMMDFiles[] = mmdCharacters.map((modelFile, index) => {
-    const { vmdBlobUrls, vmdFileNames } = vmdPerModel[index] ?? {
+  const processedMmd: ProcessedMMDFiles[] = mmdCharacters.map((modelFile, index) => {
+    const { vmdBlobUrls, vmdFileNames } = vmdPerMmd[index] ?? {
       vmdBlobUrls: [],
       vmdFileNames: [],
     };
@@ -330,6 +371,7 @@ export async function processImportedAssets(
       name: modelFile.name.replace(/\.[^/.]+$/, ''),
       blobUrl: `${fileMap[modelFile.name.toLowerCase()]}#${modelFile.name}`,
       modelFileName: modelFile.name,
+      modelFormat: 'mmd' as const,
       manager,
       fileMap,
       vmdBlobUrls,
@@ -340,8 +382,43 @@ export async function processImportedAssets(
     };
   });
 
+  const processedGeneric: ProcessedMMDFiles[] = genericModels.map((modelFile) => ({
+    name: modelFile.name.replace(/\.[^/.]+$/, ''),
+    blobUrl: `${fileMap[modelFile.name.toLowerCase()]}#${modelFile.name}`,
+    modelFileName: modelFile.name,
+    modelByteSize: modelFile.size,
+    contentFingerprint: `${modelFile.name.toLowerCase()}:${modelFile.size}`,
+    modelFormat: genericModelFormat(modelFile),
+    assetKind: inferAssetKindFromName(modelFile.name),
+    manager,
+    fileMap,
+    vmdBlobUrls: [],
+    vmdFileNames: [],
+    cameraVmdBlobUrl: null,
+    cameraVmdFileName: null,
+    hasCameraVmd: false,
+  }));
+
+  const processed = sortByAssetKind([...processedMmd, ...processedGeneric]);
+
+  if (genericModels.length > 0 && motionSources.length > 0 && mmdCharacters.length === 0) {
+    console.warn(
+      '[Import] .vmd motions apply to MMD (.pmx/.pmd) models only — FBX/GLTF use embedded animations.'
+    );
+  }
+
+  if (stats.textures > 0 && genericModels.length > 0) {
+    console.info(
+      `[Import] Bundle: ${genericModels.length} model(s), ${stats.textures} texture(s), ${stats.mtls} MTL — sidecar files linked via folder map.`
+    );
+  }
+
   const skippedFormats = models
-    .filter((f) => !MMD_CHARACTER_EXTS.has(getAssetExtension(f)))
+    .filter(
+      (f) =>
+        !MMD_CHARACTER_EXTS.has(getAssetExtension(f)) &&
+        !GENERIC_MODEL_EXTS.has(getAssetExtension(f))
+    )
     .map((f) => f.name);
 
   return {

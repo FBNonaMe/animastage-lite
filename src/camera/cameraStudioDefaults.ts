@@ -1,7 +1,7 @@
 import type { CameraStudioSettings } from '../types';
 
 export const DEFAULT_CAMERA_STUDIO: CameraStudioSettings = {
-  autoFocus: true,
+  autoFocus: false,
   focusTarget: 'body',
   modestAngle: true,
   orbitPreset: 'manual',
@@ -11,4 +11,5 @@ export const DEFAULT_CAMERA_STUDIO: CameraStudioSettings = {
   backgroundBlur: 0,
   liveOrbit: false,
   manualCameraLock: false,
+  directPlacement: true,
 };

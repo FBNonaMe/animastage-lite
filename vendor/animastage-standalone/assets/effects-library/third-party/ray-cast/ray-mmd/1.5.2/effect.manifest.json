@@ -1,0 +1,77 @@
+{
+  "schema": "animestage.effect/v1",
+  "id": "raycast.ray-mmd",
+  "version": "1.5.2",
+  "name": "Ray-MMD 1.5.2 source",
+  "description": "Official HLSL/DX9 Ray-MMD source package; verified source, WebGL/WebGPU adapter still required.",
+  "author": {
+    "name": "Rui / ray-cast",
+    "original": "Rui",
+    "url": "https://github.com/ray-cast"
+  },
+  "kind": "preset-stack",
+  "slot": "external.preset-stack.raycast.ray-mmd",
+  "status": "VERIFIED",
+  "categories": [
+    "materials",
+    "lighting",
+    "environment",
+    "post processing",
+    "imported"
+  ],
+  "tags": [
+    "ray-mmd",
+    "pbr",
+    "fog",
+    "ssr",
+    "ssao",
+    "dof",
+    "bloom",
+    "hlsl"
+  ],
+  "renderers": [
+    "source-reference"
+  ],
+  "languages": [
+    "hlsl",
+    "mme-fx"
+  ],
+  "capabilities": [
+    "pbr-materials",
+    "multiple-lights",
+    "volumetrics",
+    "screen-space-effects",
+    "tone-mapping"
+  ],
+  "dependencies": [],
+  "passes": [],
+  "textures": [],
+  "entryPoints": {},
+  "compatibility": {
+    "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+    "webRuntime": "adapter-required",
+    "exactSourceDoesNotImplyCompatibility": true
+  },
+  "preview": {},
+  "license": {
+    "type": "MIT",
+    "redistributionAllowed": true,
+    "commercialUseAllowed": true,
+    "modificationAllowed": true,
+    "noticeFiles": [
+      "assets/effects-library/licenses/ray-mmd-MIT.txt"
+    ]
+  },
+  "parameters": [],
+  "provenance": {
+    "sourceUrl": "https://github.com/ray-cast/ray-mmd",
+    "downloadUrl": "https://codeload.github.com/ray-cast/ray-mmd/zip/refs/tags/1.5.2",
+    "sourceType": "official-github",
+    "archiveFilename": "",
+    "archiveVersion": "1.5.2",
+    "revision": "a425ab6d4219a047f8d64ac7fdc4f73c76c31dc8",
+    "sha256": "5b8c095a4d77c0a6f259829c2cbdb1a279a5d993217e3f277f578a9cf7328494",
+    "licenseUrl": "https://github.com/ray-cast/ray-mmd/blob/master/LICENSE.txt",
+    "terms": "MIT; retain copyright and permission notice"
+  }
+}

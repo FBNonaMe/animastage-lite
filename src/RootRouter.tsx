@@ -72,6 +72,7 @@ export default function RootRouter() {
   const studioNav = {
     onStart: () => navigateTo('/app'),
     onStartDemo: () => navigateTo('/app?demo=party-dance'),
+    onStartCreator: () => navigateTo('/app?flow=creator'),
     onStartDemoId: (id: string) => navigateTo(`/app?demo=${encodeURIComponent(id)}`),
   };
 
@@ -139,6 +140,7 @@ export default function RootRouter() {
     <LandingPage
       onStart={studioNav.onStart}
       onStartDemo={studioNav.onStartDemo}
+      onStartCreator={studioNav.onStartCreator}
       onStartDemoGallery={() => navigateTo('/app?demo=gallery')}
       onStartDemoId={studioNav.onStartDemoId}
     />

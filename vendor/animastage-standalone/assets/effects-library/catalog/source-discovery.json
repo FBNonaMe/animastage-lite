@@ -1,0 +1,593 @@
+{
+  "schema": "animestage.effect-sources/v1",
+  "registryVersion": "2026.08.29",
+  "generatedAt": "2026-08-29T12:02:08.761Z",
+  "network": [],
+  "sources": [
+    {
+      "id": "raycast.ray-mmd",
+      "owner": "ray-cast",
+      "repository": "ray-mmd",
+      "officialUrl": "https://github.com/ray-cast/ray-mmd",
+      "downloadUrl": "https://codeload.github.com/ray-cast/ray-mmd/zip/refs/tags/1.5.2",
+      "revision": {
+        "type": "tag",
+        "label": "1.5.2",
+        "commit": "a425ab6d4219a047f8d64ac7fdc4f73c76c31dc8"
+      },
+      "repositoryMetadata": {
+        "description": "Official HLSL/DX9 Ray-MMD source package; verified source, WebGL/WebGPU adapter still required.",
+        "defaultBranch": "master",
+        "pushedAt": "2024-06-23T05:58:12Z",
+        "archived": false
+      },
+      "license": {
+        "id": "MIT",
+        "url": "https://github.com/ray-cast/ray-mmd/blob/master/LICENSE.txt",
+        "redistributionAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "reviewRequired": false
+      },
+      "downloadPolicy": "bundle-allowed",
+      "status": "VERIFIED",
+      "discoveryMode": "pinned-offline",
+      "discoveredAt": "2026-08-29T12:02:08.761Z",
+      "manifest": {
+        "schema": "animestage.effect/v1",
+        "id": "raycast.ray-mmd",
+        "version": "1.5.2",
+        "name": "Ray-MMD 1.5.2 source",
+        "description": "Official HLSL/DX9 Ray-MMD source package; verified source, WebGL/WebGPU adapter still required.",
+        "author": {
+          "name": "Rui / ray-cast",
+          "original": "Rui",
+          "url": "https://github.com/ray-cast"
+        },
+        "kind": "preset-stack",
+        "slot": "external.preset-stack.raycast.ray-mmd",
+        "status": "VERIFIED",
+        "categories": [
+          "materials",
+          "lighting",
+          "environment",
+          "post processing",
+          "imported"
+        ],
+        "tags": [
+          "ray-mmd",
+          "pbr",
+          "fog",
+          "ssr",
+          "ssao",
+          "dof",
+          "bloom",
+          "hlsl"
+        ],
+        "renderers": [
+          "source-reference"
+        ],
+        "languages": [
+          "hlsl",
+          "mme-fx"
+        ],
+        "capabilities": [
+          "pbr-materials",
+          "multiple-lights",
+          "volumetrics",
+          "screen-space-effects",
+          "tone-mapping"
+        ],
+        "dependencies": [],
+        "compatibility": {
+          "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+          "webRuntime": "adapter-required",
+          "exactSourceDoesNotImplyCompatibility": true
+        },
+        "provenance": {
+          "sourceUrl": "https://github.com/ray-cast/ray-mmd",
+          "downloadUrl": "https://codeload.github.com/ray-cast/ray-mmd/zip/refs/tags/1.5.2",
+          "sourceType": "official-github",
+          "archiveVersion": "1.5.2",
+          "revision": "a425ab6d4219a047f8d64ac7fdc4f73c76c31dc8",
+          "licenseUrl": "https://github.com/ray-cast/ray-mmd/blob/master/LICENSE.txt",
+          "terms": "MIT; retain copyright and permission notice"
+        }
+      }
+    },
+    {
+      "id": "kh40.animasa",
+      "owner": "KH40-khoast40",
+      "repository": "AniMasa",
+      "officialUrl": "https://github.com/KH40-khoast40/AniMasa",
+      "downloadUrl": "https://codeload.github.com/KH40-khoast40/AniMasa/zip/refs/heads/main",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "b99d51e2cb4d5215bace900a3abee2acefc26492"
+      },
+      "repositoryMetadata": {
+        "description": "Animasa Miku-specific three-tone material shader. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "defaultBranch": "main",
+        "pushedAt": "",
+        "archived": false
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/AniMasa#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "downloadPolicy": "metadata-only",
+      "status": "DISCOVERED",
+      "discoveryMode": "pinned-offline",
+      "discoveredAt": "2026-08-29T12:02:08.761Z",
+      "manifest": {
+        "schema": "animestage.effect/v1",
+        "id": "kh40.animasa",
+        "version": "0.0.0-source",
+        "name": "Ani:Masa source",
+        "description": "Animasa Miku-specific three-tone material shader. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "author": {
+          "name": "KH40",
+          "original": "KH40 / khoast40",
+          "url": "https://github.com/KH40-khoast40"
+        },
+        "kind": "material",
+        "slot": "external.material.kh40.animasa",
+        "status": "DISCOVERED",
+        "categories": [
+          "materials",
+          "imported"
+        ],
+        "tags": [
+          "animasa",
+          "toon",
+          "camera-angle",
+          "kh40",
+          "source-reference"
+        ],
+        "renderers": [
+          "source-reference"
+        ],
+        "languages": [
+          "hlsl",
+          "mme-fx"
+        ],
+        "capabilities": [
+          "three-tone-material"
+        ],
+        "dependencies": [],
+        "compatibility": {
+          "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+          "webRuntime": "adapter-required",
+          "exactSourceDoesNotImplyCompatibility": true
+        },
+        "provenance": {
+          "sourceUrl": "https://github.com/KH40-khoast40/AniMasa",
+          "downloadUrl": "https://codeload.github.com/KH40-khoast40/AniMasa/zip/refs/heads/main",
+          "sourceType": "official-github",
+          "archiveVersion": "main",
+          "revision": "b99d51e2cb4d5215bace900a3abee2acefc26492",
+          "licenseUrl": "https://github.com/KH40-khoast40/AniMasa#rules",
+          "terms": "Modification allowed; intact shader redistribution prohibited; credit KH40 or shader name."
+        }
+      }
+    },
+    {
+      "id": "kh40.drop-shadow-stage",
+      "owner": "KH40-khoast40",
+      "repository": "DropShadow_Stage",
+      "officialUrl": "https://github.com/KH40-khoast40/DropShadow_Stage",
+      "downloadUrl": "https://codeload.github.com/KH40-khoast40/DropShadow_Stage/zip/refs/heads/main",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "60486b905d7ea3bba44b19c623dfab0c01a3e406"
+      },
+      "repositoryMetadata": {
+        "description": "KH40 stage-compatible edit of BeamManP DropShadow. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "defaultBranch": "main",
+        "pushedAt": "",
+        "archived": false
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/DropShadow_Stage#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "downloadPolicy": "metadata-only",
+      "status": "DISCOVERED",
+      "discoveryMode": "pinned-offline",
+      "discoveredAt": "2026-08-29T12:02:08.761Z",
+      "manifest": {
+        "schema": "animestage.effect/v1",
+        "id": "kh40.drop-shadow-stage",
+        "version": "0.0.0-source",
+        "name": "DropShadow Stage source",
+        "description": "KH40 stage-compatible edit of BeamManP DropShadow. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "author": {
+          "name": "KH40",
+          "original": "KH40 / khoast40",
+          "url": "https://github.com/KH40-khoast40"
+        },
+        "kind": "lighting",
+        "slot": "external.lighting.kh40.drop-shadow-stage",
+        "status": "DISCOVERED",
+        "categories": [
+          "materials",
+          "imported"
+        ],
+        "tags": [
+          "drop-shadow",
+          "stage",
+          "kh40",
+          "source-reference"
+        ],
+        "renderers": [
+          "source-reference"
+        ],
+        "languages": [
+          "hlsl",
+          "mme-fx"
+        ],
+        "capabilities": [
+          "stage-drop-shadow"
+        ],
+        "dependencies": [],
+        "compatibility": {
+          "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+          "webRuntime": "adapter-required",
+          "exactSourceDoesNotImplyCompatibility": true
+        },
+        "provenance": {
+          "sourceUrl": "https://github.com/KH40-khoast40/DropShadow_Stage",
+          "downloadUrl": "https://codeload.github.com/KH40-khoast40/DropShadow_Stage/zip/refs/heads/main",
+          "sourceType": "official-github",
+          "archiveVersion": "main",
+          "revision": "60486b905d7ea3bba44b19c623dfab0c01a3e406",
+          "licenseUrl": "https://github.com/KH40-khoast40/DropShadow_Stage#rules",
+          "terms": "Edited redistribution allowed; intact effect redistribution prohibited; credit BeamManP and KH40."
+        }
+      }
+    },
+    {
+      "id": "kh40.mes40",
+      "owner": "KH40-khoast40",
+      "repository": "MES40",
+      "officialUrl": "https://github.com/KH40-khoast40/MES40",
+      "downloadUrl": "https://codeload.github.com/KH40-khoast40/MES40/zip/refs/heads/master",
+      "revision": {
+        "type": "branch",
+        "label": "master",
+        "commit": "58a27f0c59e52498ffeeb08b7949471ff5123a47"
+      },
+      "repositoryMetadata": {
+        "description": "MMD Extended Shader with maps, IBL, rim light, parallax and HgShadow integration. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "defaultBranch": "master",
+        "pushedAt": "",
+        "archived": false
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/MES40#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "downloadPolicy": "metadata-only",
+      "status": "DISCOVERED",
+      "discoveryMode": "pinned-offline",
+      "discoveredAt": "2026-08-29T12:02:08.761Z",
+      "manifest": {
+        "schema": "animestage.effect/v1",
+        "id": "kh40.mes40",
+        "version": "0.0.0-source",
+        "name": "MES40 source",
+        "description": "MMD Extended Shader with maps, IBL, rim light, parallax and HgShadow integration. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "author": {
+          "name": "KH40",
+          "original": "KH40 / khoast40",
+          "url": "https://github.com/KH40-khoast40"
+        },
+        "kind": "material",
+        "slot": "external.material.kh40.mes40",
+        "status": "DISCOVERED",
+        "categories": [
+          "materials",
+          "imported"
+        ],
+        "tags": [
+          "mes40",
+          "extended-material",
+          "ibl",
+          "parallax",
+          "kh40",
+          "source-reference"
+        ],
+        "renderers": [
+          "source-reference"
+        ],
+        "languages": [
+          "hlsl",
+          "mme-fx"
+        ],
+        "capabilities": [
+          "normal-map",
+          "specular-map",
+          "ibl",
+          "parallax",
+          "soft-shadow"
+        ],
+        "dependencies": [],
+        "compatibility": {
+          "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+          "webRuntime": "adapter-required",
+          "exactSourceDoesNotImplyCompatibility": true
+        },
+        "provenance": {
+          "sourceUrl": "https://github.com/KH40-khoast40/MES40",
+          "downloadUrl": "https://codeload.github.com/KH40-khoast40/MES40/zip/refs/heads/master",
+          "sourceType": "official-github",
+          "archiveVersion": "master",
+          "revision": "58a27f0c59e52498ffeeb08b7949471ff5123a47",
+          "licenseUrl": "https://github.com/KH40-khoast40/MES40#rules",
+          "terms": "Modification allowed; commercial use and intact redistribution prohibited; credits file required for distributions."
+        }
+      }
+    },
+    {
+      "id": "kh40.shadekai",
+      "owner": "KH40-khoast40",
+      "repository": "Shadekai",
+      "officialUrl": "https://github.com/KH40-khoast40/Shadekai",
+      "downloadUrl": "https://codeload.github.com/KH40-khoast40/Shadekai/zip/refs/heads/main",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "d0817cc65fd007c31aeb2d7307f3c145e50b55d9"
+      },
+      "repositoryMetadata": {
+        "description": "Project Sekai-oriented MMD shader with vertex-color driven outlines and HgShadow. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "defaultBranch": "main",
+        "pushedAt": "",
+        "archived": false
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/Shadekai#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "downloadPolicy": "metadata-only",
+      "status": "DISCOVERED",
+      "discoveryMode": "pinned-offline",
+      "discoveredAt": "2026-08-29T12:02:08.761Z",
+      "manifest": {
+        "schema": "animestage.effect/v1",
+        "id": "kh40.shadekai",
+        "version": "0.0.0-source",
+        "name": "Shadekai source",
+        "description": "Project Sekai-oriented MMD shader with vertex-color driven outlines and HgShadow. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "author": {
+          "name": "KH40",
+          "original": "KH40 / khoast40",
+          "url": "https://github.com/KH40-khoast40"
+        },
+        "kind": "material",
+        "slot": "external.material.kh40.shadekai",
+        "status": "DISCOVERED",
+        "categories": [
+          "materials",
+          "imported"
+        ],
+        "tags": [
+          "project-sekai",
+          "toon",
+          "vertex-color",
+          "kh40",
+          "source-reference"
+        ],
+        "renderers": [
+          "source-reference"
+        ],
+        "languages": [
+          "hlsl",
+          "mme-fx"
+        ],
+        "capabilities": [
+          "character-lighting",
+          "rim-light",
+          "vertex-outline",
+          "soft-shadow"
+        ],
+        "dependencies": [],
+        "compatibility": {
+          "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+          "webRuntime": "adapter-required",
+          "exactSourceDoesNotImplyCompatibility": true
+        },
+        "provenance": {
+          "sourceUrl": "https://github.com/KH40-khoast40/Shadekai",
+          "downloadUrl": "https://codeload.github.com/KH40-khoast40/Shadekai/zip/refs/heads/main",
+          "sourceType": "official-github",
+          "archiveVersion": "main",
+          "revision": "d0817cc65fd007c31aeb2d7307f3c145e50b55d9",
+          "licenseUrl": "https://github.com/KH40-khoast40/Shadekai#rules",
+          "terms": "Modification allowed; commercial use and intact redistribution prohibited; credit KH40 or shader name."
+        }
+      }
+    },
+    {
+      "id": "kh40.tonemap-raycast",
+      "owner": "KH40-khoast40",
+      "repository": "ToneMap_raycast",
+      "officialUrl": "https://github.com/KH40-khoast40/ToneMap_raycast",
+      "downloadUrl": "https://codeload.github.com/KH40-khoast40/ToneMap_raycast/zip/refs/heads/main",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "aef3633d96a5c9841d47b72ff60916dd253002ea"
+      },
+      "repositoryMetadata": {
+        "description": "Standalone KH40 port of Ray-MMD tone mapping. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "defaultBranch": "main",
+        "pushedAt": "",
+        "archived": false
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/ToneMap_raycast#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "downloadPolicy": "metadata-only",
+      "status": "DISCOVERED",
+      "discoveryMode": "pinned-offline",
+      "discoveredAt": "2026-08-29T12:02:08.761Z",
+      "manifest": {
+        "schema": "animestage.effect/v1",
+        "id": "kh40.tonemap-raycast",
+        "version": "0.0.0-source",
+        "name": "ToneMap raycast source",
+        "description": "Standalone KH40 port of Ray-MMD tone mapping. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "author": {
+          "name": "KH40",
+          "original": "KH40 / khoast40",
+          "url": "https://github.com/KH40-khoast40"
+        },
+        "kind": "post-process",
+        "slot": "external.post-process.kh40.tonemap-raycast",
+        "status": "DISCOVERED",
+        "categories": [
+          "post processing",
+          "imported"
+        ],
+        "tags": [
+          "tone-map",
+          "raycast",
+          "kh40",
+          "source-reference"
+        ],
+        "renderers": [
+          "source-reference"
+        ],
+        "languages": [
+          "hlsl",
+          "mme-fx"
+        ],
+        "capabilities": [
+          "tone-mapping",
+          "highlight-rolloff"
+        ],
+        "dependencies": [],
+        "compatibility": {
+          "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+          "webRuntime": "adapter-required",
+          "exactSourceDoesNotImplyCompatibility": true
+        },
+        "provenance": {
+          "sourceUrl": "https://github.com/KH40-khoast40/ToneMap_raycast",
+          "downloadUrl": "https://codeload.github.com/KH40-khoast40/ToneMap_raycast/zip/refs/heads/main",
+          "sourceType": "official-github",
+          "archiveVersion": "main",
+          "revision": "aef3633d96a5c9841d47b72ff60916dd253002ea",
+          "licenseUrl": "https://github.com/KH40-khoast40/ToneMap_raycast#rules",
+          "terms": "No explicit redistribution license in repository README; source attribution recorded; legal review required."
+        }
+      }
+    },
+    {
+      "id": "kh40.working-floor-blur",
+      "owner": "KH40-khoast40",
+      "repository": "WorkingFloor2_Blur",
+      "officialUrl": "https://github.com/KH40-khoast40/WorkingFloor2_Blur",
+      "downloadUrl": "https://codeload.github.com/KH40-khoast40/WorkingFloor2_Blur/zip/refs/heads/main",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": ""
+      },
+      "repositoryMetadata": {
+        "description": "KH40 blurred-reflection edit of HariganeP WorkingFloor2. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "defaultBranch": "main",
+        "pushedAt": "",
+        "archived": false
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/WorkingFloor2_Blur#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "downloadPolicy": "metadata-only",
+      "status": "DISCOVERED",
+      "discoveryMode": "pinned-offline",
+      "discoveredAt": "2026-08-29T12:02:08.761Z",
+      "manifest": {
+        "schema": "animestage.effect/v1",
+        "id": "kh40.working-floor-blur",
+        "version": "0.0.0-source",
+        "name": "WorkingFloor2 Blur source",
+        "description": "KH40 blurred-reflection edit of HariganeP WorkingFloor2. Official source indexed; original is not bundled because repository rules prohibit intact redistribution.",
+        "author": {
+          "name": "KH40",
+          "original": "KH40 / khoast40",
+          "url": "https://github.com/KH40-khoast40"
+        },
+        "kind": "environment",
+        "slot": "external.environment.kh40.working-floor-blur",
+        "status": "DISCOVERED",
+        "categories": [
+          "weather fx",
+          "imported"
+        ],
+        "tags": [
+          "floor",
+          "reflection",
+          "blur",
+          "kh40",
+          "source-reference"
+        ],
+        "renderers": [
+          "source-reference"
+        ],
+        "languages": [
+          "hlsl",
+          "mme-fx"
+        ],
+        "capabilities": [
+          "planar-reflection",
+          "reflection-blur"
+        ],
+        "dependencies": [],
+        "compatibility": {
+          "nativeRuntime": "MikuMikuEffect / Direct3D 9",
+          "webRuntime": "adapter-required",
+          "exactSourceDoesNotImplyCompatibility": true
+        },
+        "provenance": {
+          "sourceUrl": "https://github.com/KH40-khoast40/WorkingFloor2_Blur",
+          "downloadUrl": "https://codeload.github.com/KH40-khoast40/WorkingFloor2_Blur/zip/refs/heads/main",
+          "sourceType": "official-github",
+          "archiveVersion": "main",
+          "revision": "",
+          "licenseUrl": "https://github.com/KH40-khoast40/WorkingFloor2_Blur#rules",
+          "terms": "Edited redistribution allowed; intact effect redistribution prohibited; credit HariganeP and KH40."
+        }
+      }
+    }
+  ]
+}

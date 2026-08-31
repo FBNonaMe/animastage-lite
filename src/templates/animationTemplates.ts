@@ -44,7 +44,7 @@ export function orbitCameraSnapshot(
   target?: [number, number, number]
 ): CameraSnapshot {
   const yaw = yawDeg * DEG2RAD;
-  const pitch = pitchDeg * DEG2RAD;
+  const pitch = Math.max(pitchDeg, -12) * DEG2RAD;
   const [cx, cy, cz] = target ?? getStageTargetTuple();
 
   const position: [number, number, number] = [
@@ -75,6 +75,7 @@ function cameraKeyframe(frame: number, snap: CameraSnapshot): CameraKeyframe {
     position: [...snap.position],
     rotation: [...snap.rotation],
     fov: snap.fov,
+    target: [...snap.target],
   };
 }
 
@@ -802,6 +803,11 @@ export const ANIMATION_TEMPLATES: AnimationTemplate[] = [
 
 export function getAnimationTemplate(id: string): AnimationTemplate | undefined {
   return ANIMATION_TEMPLATES.find((t) => t.id === id);
+}
+
+export function templateHasCamera(id: string): boolean {
+  const t = getAnimationTemplate(id);
+  return Boolean(t?.generateCameraKeyframes);
 }
 
 export function getTemplatesByCategory(category: AnimationTemplateCategory): AnimationTemplate[] {

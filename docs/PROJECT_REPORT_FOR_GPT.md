@@ -1,66 +1,66 @@
-# AnimaStage Lite — полный отчёт о проекте (для анализа)
+# AnimaStage Lite — Full Project Report (for analysis)
 
-Скопируй этот файл целиком в ChatGPT / Claude и попроси: «проанализируй проект по этому документу».
+Copy this file into ChatGPT / Claude and ask: "analyze the project based on this document."
 
 ---
 
-## 1. Что это за проект
+## 1. What this project is
 
-**AnimaStage Lite** — веб-приложение (браузерная студия) для работы с **MikuMikuDance (MMD)** без установки MMD на Windows. Пользователь открывает сайт, загружает модели **PMX/PMD**, движения **VMD**, настраивает сцену, физику, камеру, таймлайн и может **экспортировать видео** (в том числе вертикальное **9:16** для Shorts/Reels/TikTok).
+**AnimaStage Lite** is a web app (browser studio) for working with **MikuMikuDance (MMD)** without installing MMD on Windows. Users open the site, load **PMX/PMD** models and **VMD** motions, configure the scene, physics, camera, timeline, and can **export video** (including vertical **9:16** for Shorts/Reels/TikTok).
 
-| | Значение |
+| | Value |
 |---|---|
-| Название npm | `animastage-lite@1.0.0` |
-| Репозиторий | https://github.com/FBNonaMe/animastage-lite |
-| Демо | https://animastage-lite.app |
-| Студия | https://animastage-lite.app/app |
-| Локальная папка (рабочее имя) | `web-mmd-suite` |
+| npm name | `animastage-lite@1.0.0` |
+| Repository | https://github.com/FBNonaMe/animastage-lite |
+| Demo | https://animastage-lite.app |
+| Studio | https://animastage-lite.app/app |
+| Local folder (working name) | `web-mmd-suite` |
 
-**Важно:** есть отдельный продукт **AnimaStage Pro** (другой репозиторий, более тяжёлый рендер). В Lite в боковой панели пункт **«Pro»** — это **не** отдельный Pro-сайт, а **расширенные модули внутри Lite** (mocap, AI, collab, слои анимации).
+**Important:** there is a separate product **AnimaStage Pro** (different repo, heavier render pipeline). In Lite, the sidebar **"Pro"** item is **not** a separate Pro site — it is **extended modules inside Lite** (mocap, AI, collab, animation layers).
 
-| | Lite (этот репо) | Pro (соседний продукт) |
+| | Lite (this repo) | Pro (sibling product) |
 |---|---|---|
-| Сайт | animastage-lite.app | animastagepro.dev |
+| Site | animastage-lite.app | animastagepro.dev |
 | GitHub | FBNonaMe/animastage-lite | gtausa197-svg/AnimaStage-Pro |
-| Фокус | Быстрый превью, Shorts, слабые ПК | Полный кинематографический пайплайн |
-| Рендер | WebGL 2 + RTX Lite (bloom, DOF, weather) | Полный EffectComposer (SSAO, DOF, volumetrics) |
-| Персонажи | Один фокус сцены | Несколько персонажей, VMD на каждого |
-| Таймлайн | VMD, dopesheet, curves, export VMD | Dual timeline (VMD + cinematic camera) |
+| Focus | Fast preview, Shorts, low-end PCs | Full cinematic pipeline |
+| Render | WebGL 2 + RTX Lite (bloom, DOF, weather) | Full EffectComposer (SSAO, DOF, volumetrics) |
+| Characters | Single scene focus | Multiple characters, VMD per character |
+| Timeline | VMD, dopesheet, curves, export VMD | Dual timeline (VMD + cinematic camera) |
 
 ---
 
-## 2. Стек технологий
+## 2. Tech stack
 
-| Слой | Технологии |
+| Layer | Technologies |
 |------|------------|
 | UI | React 19, TypeScript, Tailwind CSS 4, Lucide icons |
-| Сборка | Vite 6 |
+| Build | Vite 6 |
 | 3D | Three.js 0.184, React Three Fiber, @react-three/drei, postprocessing |
 | MMD | `mmd-parser`, three-stdlib (MMD loader) |
-| Физика | Bullet через Ammo.js WASM (+ код Jolt в `src/physics/`) |
-| Видео | WebCodecs + mp4-muxer (HQ), MediaRecorder (Live) |
-| AI (опционально) | Google Gemini (`@google/genai`) |
+| Physics | Bullet via Ammo.js WASM (+ Jolt code in `src/physics/`) |
+| Video | WebCodecs + mp4-muxer (HQ), MediaRecorder (Live) |
+| AI (optional) | Google Gemini (`@google/genai`) |
 | Mocap | MediaPipe (`@mediapipe/tasks-vision`) |
 | Collab | Yjs + y-webrtc |
-| Роутинг | Свой SPA-роутер без React Router (`RootRouter.tsx`) |
+| Routing | Custom SPA router without React Router (`RootRouter.tsx`) |
 
-**Требования браузера:** WebGL 2. Для MP4 HQ лучше Chrome/Edge (WebCodecs H.264).
+**Browser requirements:** WebGL 2. For MP4 HQ, Chrome/Edge is preferred (WebCodecs H.264).
 
 ---
 
-## 3. Точки входа и страницы
+## 3. Entry points and pages
 
 ```
-/              → LandingPage.tsx (маркетинг, CTA)
-/app           → App.tsx (основная студия)
-/app?demo=1    → студия с пресетом Miku и подсказкой
+/              → LandingPage.tsx (marketing, CTA)
+/app           → App.tsx (main studio)
+/app?demo=1    → studio with Miku preset and hint
 ```
 
-- `src/main.tsx` — монтирование React
-- `src/RootRouter.tsx` — выбор лендинга или студии
+- `src/main.tsx` — React mount
+- `src/RootRouter.tsx` — landing vs studio routing
 - `index.html` — SEO, Open Graph, viewport-fit=cover
 
-**Локальный запуск:**
+**Local dev:**
 
 ```bash
 npm install
@@ -71,97 +71,97 @@ npm run lint     # tsc --noEmit
 
 ---
 
-## 4. Архитектура студии
+## 4. Studio architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ TopMenu — File, FX, физика, экспорт (desktop / mobile)   │
+│ TopMenu — File, FX, physics, export (desktop / mobile)   │
 ├──────────┬───────────────────────────────────────────────┤
 │ Sidebar  │ Viewport (R3F Canvas, MMDModelWrapper)        │
-│ модели,  │ 3D сцена, gizmo, фон, 16:9 / 9:16           │
-│ морфы,   ├───────────────────────────────────────────────┤
+│ models,  │ 3D scene, gizmo, background, 16:9 / 9:16      │
+│ morphs,  ├───────────────────────────────────────────────┤
 │ Pro      │ EditorTimelineShell                           │
-│ панели   │ Timeline | Dopesheet | Curves                 │
+│ panels   │ Timeline | Dopesheet | Curves                 │
 └──────────┴───────────────────────────────────────────────┘
 │ MobileStudioBar (<768px): Menu, Panel, Play, Time, FX    │
 └──────────────────────────────────────────────────────────┘
 ```
 
-**Центр состояния:** `App.tsx` — большой `AppState` (модели, кадры, физика, FX, камера, таймлайн).
+**State hub:** `App.tsx` — large `AppState` (models, frames, physics, FX, camera, timeline).
 
-**Ключевые файлы:**
+**Key files:**
 
-| Файл | Роль |
+| File | Role |
 |------|------|
-| `App.tsx` | Состояние приложения, collab, запись видео, UI layout |
-| `components/MMDModelWrapper.tsx` | PMX/VMD, скелет, морфы, физика, слои анимации |
-| `components/Viewport.tsx` | Canvas, оверлеи, drag-drop |
-| `components/Timeline.tsx` | Таймлайн, transport, keyframes |
-| `components/TimelineLogic.ts` | Логика треков и интерполяции |
-| `components/CameraLogic.ts` | Ключи камеры |
-| `components/Sidebar.tsx` | Панель сцены и Pro-модули |
-| `components/TopMenu.tsx` | Меню File/FX |
-| `templates/animationTemplates.ts` | Шаблоны движений (dance, camera, emote…) |
-| `video/mmdVideoRecorder.ts` | Экспорт MP4 |
-| `hooks/useVideoRecorder.ts` | Live/HQ запись |
-| `hooks/useCollab.ts` | Совместная работа |
-| `mocap/videoMocap.ts` | Видео → ключи |
-| `ai/motionAi.ts` | Gemini → ключи |
+| `App.tsx` | App state, collab, video recording, UI layout |
+| `components/MMDModelWrapper.tsx` | PMX/VMD, skeleton, morphs, physics, animation layers |
+| `components/Viewport.tsx` | Canvas, overlays, drag-drop |
+| `components/Timeline.tsx` | Timeline, transport, keyframes |
+| `components/TimelineLogic.ts` | Track logic and interpolation |
+| `components/CameraLogic.ts` | Camera keys |
+| `components/Sidebar.tsx` | Scene panel and Pro modules |
+| `components/TopMenu.tsx` | File/FX menu |
+| `templates/animationTemplates.ts` | Motion templates (dance, camera, emote…) |
+| `video/mmdVideoRecorder.ts` | MP4 export |
+| `hooks/useVideoRecorder.ts` | Live/HQ recording |
+| `hooks/useCollab.ts` | Collaboration |
+| `mocap/videoMocap.ts` | Video → keys |
+| `ai/motionAi.ts` | Gemini → keys |
 | `collab/collabSync.ts` | Yjs/WebRTC sync |
-| `types.ts` | TypeScript типы всего AppState |
+| `types.ts` | TypeScript types for AppState |
 
 ---
 
-## 5. Основной функционал
+## 5. Core features
 
-### Сцена и модели
-- Drag & drop PMX, PMD, VMD, текстуры, HDR
-- Пресеты (Miku, Kizuna) или своя модель
-- Gizmo: перемещение корня, вращение костей
-- Морфы (глаза, рот, брови)
+### Scene and models
+- Drag & drop PMX, PMD, VMD, textures, HDR
+- Presets (Miku, Kizuna) or custom model
+- Gizmo: root move, bone rotation
+- Morphs (eyes, mouth, brows)
 
-### Анимация
-- Воспроизведение VMD
-- Таймлайн: морфы + упрощённые кости + camera track
-- Dopesheet и редактор кривых (Bezier)
-- Шаблоны: Studio / +Body / +Camera / +Combo / Templates
-- Экспорт VMD (`editor/vmdExport.ts`)
+### Animation
+- VMD playback
+- Timeline: morphs + simplified bones + camera track
+- Dopesheet and curve editor (Bezier)
+- Templates: Studio / +Body / +Camera / +Combo / Templates
+- VMD export (`editor/vmdExport.ts`)
 - Undo/redo, stretch, simplify track
 
-### Камера
-- Free (orbit) и MMD (VMD / keyframes)
-- Закладки камеры, letterbox 2.39
-- Переключение 16:9 ↔ 9:16 (для Shorts подкручиваются FX и качество)
+### Camera
+- Free (orbit) and MMD (VMD / keyframes)
+- Camera bookmarks, 2.39 letterbox
+- 16:9 ↔ 9:16 toggle (FX and quality tuned for Shorts)
 
-### Визуал (RTX Lite)
-- Bloom, DOF, vignette, погода, HDR IBL, toon + outline
-- Панель FX в TopMenu
+### Visual (RTX Lite)
+- Bloom, DOF, vignette, weather, HDR IBL, toon + outline
+- FX panel in TopMenu
 
-### Физика
-- Bullet WASM, режимы: `anytime` / `playtime` / `off`
-- Ветер, пресеты MMD Lite
+### Physics
+- Bullet WASM, modes: `anytime` / `playtime` / `off`
+- Wind, MMD Lite presets
 
-### Видео
+### Video
 - MP4 HQ — WebCodecs
 - Live — MediaRecorder
-- Чистый кадр без gizmo/grid
-- 1080×1920 в режиме 9:16
+- Clean frame without gizmo/grid
+- 1080×1920 in 9:16 mode
 
-### Sidebar → Pro (модули внутри Lite)
-| Модуль | Путь | Назначение |
-|--------|------|------------|
-| Animation layers | `editor/animationLayers.ts` | Наложение анимаций, solo/mute |
-| Mocap | `mocap/videoMocap.ts` | Видео → ключи (MediaPipe) |
-| AI motion | `ai/motionAi.ts` | Gemini → ключи |
+### Sidebar → Pro (modules inside Lite)
+| Module | Path | Purpose |
+|--------|------|---------|
+| Animation layers | `editor/animationLayers.ts` | Layer animations, solo/mute |
+| Mocap | `mocap/videoMocap.ts` | Video → keys (MediaPipe) |
+| AI motion | `ai/motionAi.ts` | Gemini → keys |
 | Collab | `collab/`, `hooks/useCollab.ts` | Yjs/WebRTC |
 
 ---
 
-## 6. Структура папок
+## 6. Folder structure
 
 ```
 web-mmd-suite/
-├── src/                          # ~145 .ts/.tsx файлов
+├── src/                          # ~145 .ts/.tsx files
 │   ├── App.tsx
 │   ├── RootRouter.tsx
 │   ├── types.ts
@@ -179,27 +179,27 @@ web-mmd-suite/
 │   ├── templates/
 │   ├── video/
 │   ├── mocap/, ai/, collab/
-│   ├── physics/                  # Jolt worker (параллельно Ammo)
+│   ├── physics/                  # Jolt worker (parallel to Ammo)
 │   ├── postfx/, visualFx/, camera/, utils/
 │   └── main.tsx
 ├── docs/
 │   ├── ANIMASTAGE_LITE.md
 │   ├── REZE_INTEGRATION.md
-│   └── PROJECT_REPORT_FOR_GPT.md   # этот файл
-├── public/                       # studio-screenshot.png, статика
-├── android/                      # нативная оболочка (не основной веб)
+│   └── PROJECT_REPORT_FOR_GPT.md   # this file
+├── public/                       # studio-screenshot.png, static assets
+├── android/                      # native shell (not the main web app)
 ├── README.md, SECURITY.md
 ├── .env.example
 └── package.json
 ```
 
-**Внимание:** папка `AnimeStageLite/animastage-lite/` — устаревшая копия. **Актуальный код — в корневом `src/`.**
+**Note:** `AnimeStageLite/animastage-lite/` is an outdated copy. **Active code lives in the root `src/`.**
 
 ---
 
-## 7. Состояние приложения (AppState)
+## 7. Application state (AppState)
 
-Один большой React state в `App.tsx` (без Redux):
+One large React state in `App.tsx` (no Redux):
 
 - `models[]` — PMX, keyframes, VMD flags, morphs, layers
 - `currentFrame`, `maxFrames`, `isPlaying`, `playSpeed`
@@ -210,94 +210,94 @@ web-mmd-suite/
 - `timelineActiveTrack`
 - UI: `showLeftSidebar`, `showTimelinePanel`, mobile nav state
 
-Плейхед: `utils/playhead.ts` + ref для плавного rAF.
+Playhead: `utils/playhead.ts` + ref for smooth rAF.
 
 ---
 
-## 8. UI: десктоп vs мобильная версия
+## 8. UI: desktop vs mobile
 
-**Брейкпоинт:** `max-width: 767px` (`hooks/useMediaQuery.ts` → `useIsMobileStudio()`).
+**Breakpoint:** `max-width: 767px` (`hooks/useMediaQuery.ts` → `useIsMobileStudio()`).
 
-| Область | Desktop (≥768px) | Mobile (<768px) |
+| Area | Desktop (≥768px) | Mobile (<768px) |
 |---------|------------------|-----------------|
-| Sidebar | Колонка, collapse | Drawer + затемнение |
+| Sidebar | Column, collapse | Drawer + overlay |
 | TopMenu | Dropdown File/FX | Hamburger + sheets |
-| Timeline tools | 5× TemplatePicker + Layer + Clear + Frame | Кнопка **Templates** → bottom sheet (`MobileTemplateSheet`) |
-| Timeline tracks | Список слева (w-56) | Горизонтальные чипы, один активный трек |
-| Низ экрана | — | `MobileStudioBar`: Menu, Panel, Play, Time, FX |
-| Viewport | Полные подписи | Компактные кнопки |
+| Timeline tools | 5× TemplatePicker + Layer + Clear + Frame | **Templates** button → bottom sheet (`MobileTemplateSheet`) |
+| Timeline tracks | Left list (w-56) | Horizontal chips, one active track |
+| Bottom bar | — | `MobileStudioBar`: Menu, Panel, Play, Time, FX |
+| Viewport | Full labels | Compact buttons |
 
-**Принцип разработки:** десктоп в `hidden md:flex` / `variant="desktop"`; мобильные правки не должны ломать ПК.
+**Dev principle:** desktop in `hidden md:flex` / `variant="desktop"`; mobile changes must not break desktop.
 
-**Недавние мобильные правки:**
-- Адаптация Timeline (узкие кадры, чипы треков)
-- Portal для TemplatePicker на десктопе (меню не обрезается)
-- На мобиле — один bottom sheet вместо 5 выпадающих меню
-- Safe area для iPhone (`viewport-fit=cover`, env(safe-area-inset-*))
+**Recent mobile work:**
+- Timeline adaptation (narrow frames, track chips)
+- Portal for TemplatePicker on desktop (menus not clipped)
+- Mobile: one bottom sheet instead of 5 dropdown menus
+- iPhone safe area (`viewport-fit=cover`, env(safe-area-inset-*))
 
 ---
 
-## 9. Переменные окружения
+## 9. Environment variables
 
 ```env
-VITE_GEMINI_API_KEY=...           # AI motion (опционально)
-VITE_COLLAB_SIGNALING=wss://...   # WebRTC signaling (опционально)
+VITE_GEMINI_API_KEY=...           # AI motion (optional)
+VITE_COLLAB_SIGNALING=wss://...   # WebRTC signaling (optional)
 ```
 
-`.env` в gitignore. `VITE_*` попадают в клиентский бандл — не коммитить продакшн-ключи.
+`.env` is gitignored. `VITE_*` values end up in the client bundle — do not commit production keys.
 
 ---
 
-## 10. Зависимости и лицензии
+## 10. Dependencies and licenses
 
-- Код Lite — open source (LICENSE в репо)
-- PMX/VMD/текстуры — права у авторов контента
-- Pro — отдельный репозиторий и лицензия
-
----
-
-## 11. Тесты и качество кода
-
-- Автотестов почти нет
-- `npm run lint` = только `tsc --noEmit`
-- Крупный монолит `App.tsx` (~1000 строк)
-- Два физических стека (Ammo + Jolt) — нужно понимать, что в проде активно
+- Lite code — open source (LICENSE in repo)
+- PMX/VMD/textures — rights belong to content authors
+- Pro — separate repository and license
 
 ---
 
-## 12. Зоны для глубокого анализа (задачи для AI)
+## 11. Tests and code quality
 
-1. Рефакторинг `App.tsx` — context, разбиение state
-2. Производительность 9:16 на слабых GPU
-3. Fallback если WebCodecs недоступен
-4. Безопасность клиентских API keys
-5. Мобильный UX — мало места под viewport + timeline
-6. Покрытие тестами критичных путей (VMD load, export)
-7. Согласованность Lite vs Pro — roadmap фич
-8. Доступность (клавиатура, screen readers)
-9. i18n (сейчас UI на английском)
-10. Удаление/изоляция legacy папки `AnimeStageLite/`
+- Almost no automated tests
+- `npm run lint` = `tsc --noEmit` only
+- Large monolith `App.tsx` (~1000 lines)
+- Two physics stacks (Ammo + Jolt) — know which one is active in production
 
 ---
 
-## 13. Примеры промптов для анализа
+## 12. Deep analysis areas (tasks for AI)
+
+1. Refactor `App.tsx` — context, split state
+2. 9:16 performance on weak GPUs
+3. Fallback when WebCodecs is unavailable
+4. Client-side API key security
+5. Mobile UX — little space for viewport + timeline
+6. Test coverage for critical paths (VMD load, export)
+7. Lite vs Pro consistency — feature roadmap
+8. Accessibility (keyboard, screen readers)
+9. i18n (UI is English-only)
+10. Remove/isolate legacy `AnimeStageLite/` folder
+
+---
+
+## 13. Sample analysis prompts
 
 ```
-По этому отчёту:
-1. Нарисуй диаграмму потока данных от загрузки PMX до экспорта MP4.
-2. Найди 10 главных технических долгов и расставь приоритеты.
-3. Предложи план рефакторинга App.tsx без поломки функционала.
-4. Сравни Lite с Pro и составь roadmap.
-5. Что ещё не адаптировано для мобильных 375px?
-6. Оцени риски безопасности (VITE_* в бандле, collab).
+Based on this report:
+1. Draw a data-flow diagram from PMX load to MP4 export.
+2. Find the 10 biggest technical debts and prioritize them.
+3. Propose an App.tsx refactor plan without breaking features.
+4. Compare Lite vs Pro and draft a roadmap.
+5. What is still not adapted for 375px mobile?
+6. Assess security risks (VITE_* in bundle, collab).
 ```
 
 ---
 
-## 14. Итог одной фразой
+## 14. One-line summary
 
-**Браузерная MMD-студия на React + Three.js** с таймлайном, Bullet-физикой, RTX Lite FX, экспортом Shorts 9:16 и опциональными модулями mocap/AI/collab; лендинг на `/`, студия на `/app`; отдельный продукт **AnimaStage Pro**; мобильная вёрстка студии добавлена недавно, десктоп должен работать как раньше.
+**Browser MMD studio on React + Three.js** with timeline, Bullet physics, RTX Lite FX, 9:16 Shorts export, and optional mocap/AI/collab modules; landing at `/`, studio at `/app`; separate **AnimaStage Pro** product; mobile studio layout added recently, desktop should behave as before.
 
 ---
 
-*Документ сгенерирован для передачи в GPT/Claude. Репозиторий: animastage-lite / web-mmd-suite.*
+*Document generated for GPT/Claude handoff. Repository: animastage-lite / web-mmd-suite.*

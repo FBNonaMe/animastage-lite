@@ -8,6 +8,7 @@ import type {
   ViewportFormat,
   VisualFxSettings,
 } from '../../types';
+import type { SmartVideoMetadata } from '../../smartMetadata/types';
 
 /** Product-level quality preset (maps to settings only — no engine changes). */
 export type QualityMode = 'performance' | 'balanced' | 'quality';
@@ -28,6 +29,10 @@ export interface AnimaStageScene {
   camera: AnimaStageCameraBlock;
   fx: AnimaStageFxBlock;
   settings: AnimaStageSettingsBlock;
+  /** Scene Studio 2.0 visual world state (additive v2 extension). */
+  studio?: AnimaStageStudioBlock;
+  /** Export-ready video metadata (Smart Metadata Generator). */
+  exportMetadata?: SmartVideoMetadata;
 }
 
 /** @deprecated alias */
@@ -80,6 +85,15 @@ export interface AnimaStageSettingsBlock {
   maxFrames: number;
   currentFrame: number;
   mmdLite: AppState['mmdLite'];
+}
+
+export interface AnimaStageStudioBlock {
+  sceneStudio?: AppState['sceneStudio'];
+  sceneDirector?: AppState['sceneDirector'];
+  sceneComposer: AppState['sceneComposer'];
+  dynamicSky?: AppState['dynamicSky'];
+  sceneBackground: AppState['sceneBackground'];
+  sceneHdr: AppState['sceneHdr'];
 }
 
 export interface SceneReadSnapshot {

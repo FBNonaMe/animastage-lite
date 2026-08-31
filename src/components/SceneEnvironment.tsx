@@ -1,8 +1,10 @@
 import { ContactShadows, Environment, MeshReflectorMaterial } from '@react-three/drei';
-import { useThree } from '@react-three/fiber';
-import { useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import type { VisualFxSettings } from '../types';
+import type { SceneComposerState } from '../sceneComposer/types';
+import { sunPositionFromAngles, normalizeSceneComposerLights } from '../sceneComposer/defaults';
 import {
   getLightPreset,
   getScenePreset,
@@ -11,6 +13,7 @@ import {
 import { getRenderTierConfig } from '../render/renderTierConfig';
 import type { RenderTier } from '../types';
 import { isWebGpuRenderer } from '../utils/webgpuSupport';
+import CharacterLightingRig from './lighting/CharacterLightingRig';
 
 interface SceneEnvironmentProps {
   visualFx: VisualFxSettings;
@@ -18,6 +21,59 @@ interface SceneEnvironmentProps {
   rtxActive: boolean;
   shadowMapSize: number;
   renderTier?: import('../types').RenderTier;
+  /** Hide studio floor when an imported stage/environment is in the scene. */
+  hideBuiltinFloor?: boolean;
+  /** Scene Composer sun / fog overrides (live preview). */
+  sceneComposer?: SceneComposerState;
+  /** Soft directional shadows (PCF soft) from Cinematic Render System. */
+  softShadows?: boolean;
+  /** ContactShadows under characters / floor. */
+  contactShadows?: boolean;
+  /** Override contact shadow map resolution (VQ budget). */
+  contactShadowResolution?: number;
+  /** Render Pipeline 2.0 contact shadow tuning. */
+  contactShadowTuning?: {
+    opacity: number;
+    scale: number;
+    blur: number;
+    far: number;
+  };
+  /** When true, AtmosphereFogBridge owns scene.fog — skip local Fog. */
+  atmosphereFogOwned?: boolean;
+  /** When dynamic sky dome is active, use soft horizon fill instead of solid preset bg. */
+  skyDomeActive?: boolean;
+  skyBackground?: string;
+  autoCharacterLights?: boolean;
+  characterPosition?: [number, number, number] | null;
+  /** When CSM is active, disable key directional shadow maps. */
+  csmActive?: boolean;
+}
+
+function ComposerFog({
+  enabled,
+  density,
+  color,
+}: {
+  enabled: boolean;
+  density: number;
+  color: string;
+}) {
+  const { scene: threeScene } = useThree();
+
+  useEffect(() => {
+    if (!enabled) {
+      threeScene.fog = null;
+      return;
+    }
+    const near = 8 + (1 - density) * 24;
+    const far = 28 + density * 72;
+    threeScene.fog = new THREE.Fog(color, near, far);
+    return () => {
+      threeScene.fog = null;
+    };
+  }, [enabled, density, color, threeScene]);
+
+  return null;
 }
 
 function SceneFog({ visualFx }: { visualFx: VisualFxSettings }) {
@@ -46,36 +102,60 @@ function SceneLighting({
   visualFx,
   ultraPhoto,
   shadowMapSize,
+  sceneComposer,
+  softShadows = true,
+  autoCharacterLights = false,
+  characterPosition = null,
+  csmActive = false,
 }: {
   visualFx: VisualFxSettings;
   ultraPhoto: boolean;
   shadowMapSize: number;
+  sceneComposer?: SceneComposerState;
+  softShadows?: boolean;
+  autoCharacterLights?: boolean;
+  characterPosition?: [number, number, number] | null;
+  csmActive?: boolean;
 }) {
   const light = getLightPreset(visualFx.lightPreset);
   const boost = ultraPhoto ? 1.12 : 1;
+  const lights = sceneComposer?.lights;
+  const sunPos =
+    lights?.sunEnabled !== false
+      ? sunPositionFromAngles(lights?.sunAzimuth ?? 135, lights?.sunElevation ?? 42)
+      : light.key.position;
+  const cascadePad = softShadows ? 36 : 30;
+  const bias = softShadows ? -0.00035 : -0.0005;
+  const normalBias = softShadows ? 0.028 : 0.02;
+  const sunCastShadow =
+    !csmActive && (lights?.sunShadows ?? light.key.castShadow);
 
   return (
     <>
-      <ambientLight
-        intensity={light.ambient.intensity * boost}
-        color={light.ambient.color}
-      />
+      {lights?.ambientEnabled !== false ? (
+        <ambientLight
+          intensity={(lights?.ambientIntensity ?? light.ambient.intensity) * boost}
+          color={lights?.ambientColor ?? light.ambient.color}
+        />
+      ) : null}
 
-      <directionalLight
-        castShadow={light.key.castShadow}
-        position={light.key.position}
-        intensity={light.key.intensity * boost}
-        color={light.key.color}
-        shadow-mapSize={[shadowMapSize, shadowMapSize]}
-        shadow-camera-near={0.5}
-        shadow-camera-far={120}
-        shadow-camera-left={-30}
-        shadow-camera-right={30}
-        shadow-camera-top={30}
-        shadow-camera-bottom={-30}
-        shadow-bias={-0.0005}
-        shadow-normalBias={0.02}
-      />
+      {lights?.sunEnabled !== false ? (
+        <directionalLight
+          castShadow={sunCastShadow}
+          position={sunPos}
+          intensity={light.key.intensity * (lights?.sunIntensity ?? 1) * boost}
+          color={lights?.sunColor ?? light.key.color}
+          shadow-mapSize={[shadowMapSize, shadowMapSize]}
+          shadow-camera-near={0.5}
+          shadow-camera-far={140}
+          shadow-camera-left={-cascadePad}
+          shadow-camera-right={cascadePad}
+          shadow-camera-top={cascadePad}
+          shadow-camera-bottom={-cascadePad}
+          shadow-bias={bias}
+          shadow-normalBias={normalBias}
+        />
+      ) : null}
 
       <directionalLight
         position={light.fill.position}
@@ -104,11 +184,21 @@ function SceneLighting({
         />
       )}
 
-      <hemisphereLight
-        intensity={light.hemisphere.intensity * boost}
-        color={light.hemisphere.sky}
-        groundColor={light.hemisphere.ground}
-      />
+      {lights?.hemisphereEnabled !== false ? (
+        <hemisphereLight
+          intensity={(lights?.hemisphereIntensity ?? light.hemisphere.intensity) * boost}
+          color={light.hemisphere.sky}
+          groundColor={light.hemisphere.ground}
+        />
+      ) : null}
+
+      {lights?.characterRigEnabled ? (
+        <CharacterLightingRig
+          lights={normalizeSceneComposerLights(lights)}
+          followCharacter={autoCharacterLights}
+          characterPosition={characterPosition}
+        />
+      ) : null}
     </>
   );
 }
@@ -162,11 +252,22 @@ function CinematicFloor({
   mirror,
   renderTier = 'lite',
   webgpu = false,
+  contactShadows = true,
+  contactShadowResolution,
+  contactShadowTuning,
 }: {
   visualFx: VisualFxSettings;
   mirror: boolean;
   renderTier?: RenderTier;
   webgpu?: boolean;
+  contactShadows?: boolean;
+  contactShadowResolution?: number;
+  contactShadowTuning?: {
+    opacity: number;
+    scale: number;
+    blur: number;
+    far: number;
+  };
 }) {
   if (webgpu) {
     return <WebGpuFloor visualFx={visualFx} mirror={mirror} />;
@@ -174,20 +275,27 @@ function CinematicFloor({
 
   const scene = getScenePreset(visualFx.scenePreset);
   const tierGpu = getRenderTierConfig(renderTier).gpu;
+  const contactRes = contactShadowResolution ?? tierGpu.contactShadowResolution;
+  const csOpacity = contactShadowTuning?.opacity ?? 0.55;
+  const csScale = contactShadowTuning?.scale ?? 28;
+  const csBlur = contactShadowTuning?.blur ?? 2.4;
+  const csFar = contactShadowTuning?.far ?? 14;
 
   if (mirror) {
     return (
       <>
-        <ContactShadows
-          position={[0, 0.002, 0]}
-          opacity={0.55}
-          scale={28}
-          blur={2.4}
-          far={14}
-          resolution={tierGpu.contactShadowResolution}
-          frames={1}
-          color="#050508"
-        />
+        {contactShadows ? (
+          <ContactShadows
+            position={[0, 0.002, 0]}
+            opacity={csOpacity}
+            scale={csScale}
+            blur={csBlur}
+            far={csFar}
+            resolution={contactRes}
+            frames={1}
+            color="#050508"
+          />
+        ) : null}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.015, 0]}>
           <planeGeometry args={[60, 60]} />
           <MeshReflectorMaterial
@@ -211,22 +319,31 @@ function CinematicFloor({
 
   return (
     <>
-      <ContactShadows
-        position={[0, 0.002, 0]}
-        opacity={0.55}
-        scale={24}
-        blur={2.4}
-        far={14}
-        resolution={tierGpu.contactShadowResolution}
-        frames={1}
-        color="#080810"
-      />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
+      {contactShadows ? (
+        <ContactShadows
+          position={[0, 0.002, 0]}
+          opacity={csOpacity}
+          scale={Math.min(csScale, 24)}
+          blur={csBlur}
+          far={csFar}
+          resolution={contactRes}
+          frames={1}
+          color="#080810"
+        />
+      ) : null}
+      <mesh
+        name="CinematicFloor"
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, -0.01, 0]}
+        receiveShadow
+      >
         <planeGeometry args={[60, 60]} />
         <meshStandardMaterial
+          name="floor"
           color={scene.floorColor}
           metalness={scene.floorMetalness * 0.5}
-          roughness={scene.floorRoughness}
+          roughness={Math.min(0.55, scene.floorRoughness * 0.7)}
+          envMapIntensity={1.1}
         />
       </mesh>
     </>
@@ -242,50 +359,88 @@ export default function SceneEnvironment({
   rtxActive,
   shadowMapSize,
   renderTier = 'lite',
+  hideBuiltinFloor = false,
+  sceneComposer,
+  softShadows = true,
+  contactShadows = true,
+  contactShadowResolution,
+  contactShadowTuning,
+  atmosphereFogOwned = false,
+  skyDomeActive = false,
+  skyBackground,
+  autoCharacterLights = false,
+  characterPosition = null,
+  csmActive = false,
 }: SceneEnvironmentProps) {
   const { gl } = useThree();
   const webgpu = isWebGpuRenderer(gl);
   const cinematic = isCinematicVisualsActive(visualFx, rtxActive);
   const scene = getScenePreset(visualFx.scenePreset);
   const tierGpu = getRenderTierConfig(renderTier).gpu;
+  const contactRes =
+    contactShadowResolution ?? tierGpu.contactShadowResolution;
+  const [iblReady, setIblReady] = useState(false);
+
+  useEffect(() => {
+    setIblReady(false);
+  }, [visualFx.scenePreset, ultraPhoto]);
+
+  useFrame((state) => {
+    if (iblReady) return;
+    if (state.clock.elapsedTime > 0.35 && state.gl.getContext()?.getContextAttributes()) {
+      setIblReady(true);
+    }
+  });
 
   if (!cinematic) {
     return (
       <>
         <color attach="background" args={['#e8ecf4']} />
-        <ambientLight intensity={1.5} color="#ffffff" />
-        <directionalLight
-          castShadow
-          position={[10, 20, 10]}
-          intensity={2.5}
-          color="#fff8f0"
-          shadow-mapSize={[shadowMapSize, shadowMapSize]}
-          shadow-camera-near={0.5}
-          shadow-camera-far={120}
-          shadow-camera-left={-30}
-          shadow-camera-right={30}
-          shadow-camera-top={30}
-          shadow-camera-bottom={-30}
-          shadow-bias={-0.0005}
-          shadow-normalBias={0.02}
+        <SceneLighting
+          visualFx={visualFx}
+          ultraPhoto={ultraPhoto}
+          shadowMapSize={shadowMapSize}
+          sceneComposer={sceneComposer}
+          softShadows={softShadows}
+          autoCharacterLights={autoCharacterLights}
+          characterPosition={characterPosition}
+          csmActive={csmActive}
         />
-        <directionalLight position={[-8, 12, -6]} intensity={1.2} color="#c8d8ff" />
-        <hemisphereLight intensity={0.6} color="#e8f0ff" groundColor="#404050" />
-        <SimpleFloor webgpu={webgpu} />
+        {!hideBuiltinFloor ? <SimpleFloor webgpu={webgpu} /> : null}
       </>
     );
   }
 
+  const bgColor = skyDomeActive
+    ? skyBackground ?? '#10182c'
+    : sceneComposer?.bgMode === 'solid_white'
+      ? '#f4f4f6'
+      : sceneComposer?.bgMode === 'solid_black'
+        ? '#080810'
+        : sceneComposer?.bgMode === 'transparent'
+          ? '#000000'
+          : scene.background;
+
   return (
     <>
-      <color attach="background" args={[scene.background]} />
-      <SceneFog visualFx={visualFx} />
+      <color attach="background" args={[bgColor]} />
+      {!atmosphereFogOwned ? (
+        sceneComposer?.fogEnabled ? (
+          <ComposerFog
+            enabled
+            density={sceneComposer.fogDensity}
+            color={sceneComposer.fogColor}
+          />
+        ) : (
+          <SceneFog visualFx={visualFx} />
+        )
+      ) : null}
 
-      {!webgpu && (
+      {!webgpu && iblReady && (
         <Environment
           preset={scene.environment}
           environmentIntensity={visualFx.environmentIntensity}
-          background={ultraPhoto && scene.showEnvironmentBackground}
+          background={false}
           resolution={ultraPhoto ? tierGpu.environmentResolution : Math.min(tierGpu.environmentResolution, 128)}
         />
       )}
@@ -294,14 +449,35 @@ export default function SceneEnvironment({
         visualFx={visualFx}
         ultraPhoto={ultraPhoto}
         shadowMapSize={shadowMapSize}
+        sceneComposer={sceneComposer}
+        softShadows={softShadows}
+        autoCharacterLights={autoCharacterLights}
+        characterPosition={characterPosition}
+        csmActive={csmActive}
       />
 
-      <CinematicFloor
-        visualFx={visualFx}
-        mirror={ultraPhoto}
-        renderTier={renderTier}
-        webgpu={webgpu}
-      />
+      {!hideBuiltinFloor ? (
+        <CinematicFloor
+          visualFx={visualFx}
+          mirror={ultraPhoto}
+          renderTier={renderTier}
+          webgpu={webgpu}
+          contactShadows={contactShadows}
+          contactShadowResolution={contactRes}
+          contactShadowTuning={contactShadowTuning}
+        />
+      ) : contactShadows && !webgpu ? (
+        <ContactShadows
+          position={[0, 0.002, 0]}
+          opacity={contactShadowTuning?.opacity ?? 0.55}
+          scale={contactShadowTuning?.scale ?? 28}
+          blur={contactShadowTuning?.blur ?? 2.4}
+          far={contactShadowTuning?.far ?? 14}
+          resolution={contactRes}
+          frames={1}
+          color="#050508"
+        />
+      ) : null}
     </>
   );
 }

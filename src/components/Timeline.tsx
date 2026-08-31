@@ -25,25 +25,27 @@ const FRAME_WIDTH_DESKTOP = 24;
 const FRAME_WIDTH_MOBILE = 16;
 /** @deprecated Use `frameWidth` in Timeline — module alias avoids HMR ReferenceError */
 const FRAME_WIDTH = FRAME_WIDTH_DESKTOP;
-const VIRTUAL_BUFFER = 40;
+const VIRTUAL_BUFFER_DESKTOP = 40;
+const VIRTUAL_BUFFER_MOBILE = 16;
 
 function useVisibleFrameRange(
   scrollRef: React.RefObject<HTMLDivElement | null>,
   maxFrames: number,
-  frameWidth: number
+  frameWidth: number,
+  buffer = VIRTUAL_BUFFER_DESKTOP
 ) {
   const [range, setRange] = useState({ start: 0, end: Math.min(maxFrames, 120) });
 
   const updateRange = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const start = Math.max(0, Math.floor(el.scrollLeft / frameWidth) - VIRTUAL_BUFFER);
+    const start = Math.max(0, Math.floor(el.scrollLeft / frameWidth) - buffer);
     const end = Math.min(
       maxFrames,
-      Math.ceil((el.scrollLeft + el.clientWidth) / frameWidth) + VIRTUAL_BUFFER
+      Math.ceil((el.scrollLeft + el.clientWidth) / frameWidth) + buffer
     );
     setRange((prev) => (prev.start === start && prev.end === end ? prev : { start, end }));
-  }, [scrollRef, maxFrames, frameWidth]);
+  }, [scrollRef, maxFrames, frameWidth, buffer]);
 
   useEffect(() => {
     updateRange();
@@ -174,6 +176,7 @@ interface TimelineProps {
   onSelectTrack: (track: TimelineActiveTrack) => void;
   onApplyTemplate: (templateId: string, mode?: TemplateApplyMode) => void;
   onClearAllKeyframes: () => void;
+  onSetVmdPlaybackEnabled?: (modelId: string, enabled: boolean) => void;
 }
 
 const TRACK_DEFINITIONS = [
@@ -211,6 +214,7 @@ export default function Timeline({
   onSelectTrack,
   onApplyTemplate,
   onClearAllKeyframes,
+  onSetVmdPlaybackEnabled,
 }: TimelineProps) {
   const { currentFrame, maxFrames, isPlaying, models, selectedObjectId, timelineActiveTrack, cameraKeyframes } =
     appState;
@@ -219,13 +223,50 @@ export default function Timeline({
   const { isProMobile, isMobileLayout } = useStudioLayout();
   const isMobile = isMobileLayout;
   const showTrackRail = !isMobile || isProMobile;
-  const frameWidth = isProMobile ? 14 : isMobile ? FRAME_WIDTH_MOBILE : FRAME_WIDTH_DESKTOP;
+  const [zoomScale, setZoomScale] = useState(1);
+  const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
+  const baseFrameWidth = isProMobile ? 14 : isMobile ? FRAME_WIDTH_MOBILE : FRAME_WIDTH_DESKTOP;
+  const frameWidth = Math.round(baseFrameWidth * zoomScale);
+
+  const onTimelineTouchStart = useCallback((e: React.TouchEvent) => {
+    // Pinch-zoom only with two fingers — single-finger stays horizontal scrub/pan.
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const dx = e.touches[0]!.clientX - e.touches[1]!.clientX;
+      const dy = e.touches[0]!.clientY - e.touches[1]!.clientY;
+      pinchRef.current = { dist: Math.hypot(dx, dy), scale: zoomScale };
+    } else {
+      pinchRef.current = null;
+    }
+  }, [zoomScale]);
+
+  const onTimelineTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 2 || !pinchRef.current) return;
+    e.preventDefault();
+    const dx = e.touches[0]!.clientX - e.touches[1]!.clientX;
+    const dy = e.touches[0]!.clientY - e.touches[1]!.clientY;
+    const dist = Math.hypot(dx, dy);
+    if (pinchRef.current.dist < 8) return;
+    const next = Math.min(2.5, Math.max(0.55, (pinchRef.current.scale * dist) / pinchRef.current.dist));
+    setZoomScale(next);
+  }, []);
+
+  const onTimelineTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) pinchRef.current = null;
+  }, []);
 
   const applyWithMode = (templateId: string) => onApplyTemplate(templateId, applyMode);
   const modelKeyCount = activeModel ? countTimelineKeyframes(activeModel.keyframes) : 0;
   const cameraKeyCount = countCameraKeyframes(cameraKeyframes);
   const vmdActive =
     Boolean(activeModel?.hasVmdAnimation) && activeModel?.vmdPlaybackEnabled !== false;
+  const vmdClipName =
+    activeModel?.vmdFileNames?.[
+      Math.min(
+        Math.max(0, activeModel.activeVmdIndex ?? (activeModel.vmdFileNames?.length ?? 1) - 1),
+        Math.max(0, (activeModel.vmdFileNames?.length ?? 1) - 1)
+      )
+    ] ?? 'VMD Motion';
 
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const totalKeys = modelKeyCount + cameraKeyCount;
@@ -233,7 +274,8 @@ export default function Timeline({
   const { start: visStart, end: visEnd } = useVisibleFrameRange(
     timelineScrollRef,
     maxFrames,
-    frameWidth
+    frameWidth,
+    isMobile ? VIRTUAL_BUFFER_MOBILE : VIRTUAL_BUFFER_DESKTOP
   );
 
   const visibleFrames = useMemo(() => {
@@ -273,7 +315,7 @@ export default function Timeline({
 
   const transportBtn =
     'cursor-pointer text-zinc-300 bg-[#1e212a] border border-zinc-800 hover:bg-zinc-800 hover:text-white flex items-center justify-center rounded transition-all shrink-0';
-  const transportBtnMd = `${transportBtn} p-1.5 px-2.5`;
+  const transportBtnMd = `${transportBtn} p-1 px-2`;
   const transportBtnSm = `${transportBtn} p-1.5 min-w-[36px] min-h-[36px]`;
 
   return (
@@ -281,12 +323,12 @@ export default function Timeline({
       className={`bg-[#16181d] select-none flex flex-col w-full text-zinc-100 font-sans ${
         isProMobile
           ? 'flex-1 min-h-0 h-full border-0 shadow-none'
-          : 'border-t border-zinc-800 h-full min-h-[160px] md:h-72 shadow-lg'
+          : 'border-t border-zinc-800 h-full min-h-0 shadow-lg'
       }`}
       id="mmd-timeline"
     >
       {/* Transport + frame (mobile: stacked; desktop: one row) */}
-      <div className="shrink-0 border-b border-zinc-800 bg-[#16181d] px-2 py-1.5 md:px-3 md:py-0 md:h-12 flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 md:gap-0 overflow-visible">
+      <div className="shrink-0 border-b border-zinc-800 bg-[#16181d] px-2 py-1 md:px-2.5 md:py-0 md:h-9 flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 overflow-visible">
         <div className="flex items-center gap-0.5 md:gap-1.5 overflow-x-auto">
           <button
             type="button"
@@ -450,18 +492,48 @@ export default function Timeline({
         {showTrackRail ? (
           <div
             className={`timeline-track-rail border-r border-[#22252c] bg-[#121418] flex-col shrink-0 min-h-0 flex ${
-              isProMobile ? 'w-[7.25rem]' : 'hidden md:flex w-56'
+              isProMobile ? 'w-[7.25rem]' : 'hidden md:flex w-44'
             }`}
           >
             <div
               className={`border-b border-zinc-800 flex items-center justify-between font-bold text-[#39c5bb] uppercase bg-[#1c1e24] shrink-0 ${
-                isProMobile ? 'h-7 px-2 text-[8px]' : 'h-8 px-3 text-[10px]'
+                isProMobile ? 'h-7 px-2 text-[8px]' : 'h-7 px-2 text-[9px]'
               }`}
             >
-              <span className="truncate">{isProMobile ? 'Tracks' : 'Bone/Morph Track'}</span>
+              <span className="truncate">{isProMobile ? 'Tracks' : 'Tracks'}</span>
               <ListFilter className={`text-zinc-500 shrink-0 ${isProMobile ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-zinc-850 min-h-0">
+              {vmdActive ? (
+                <div
+                  className={`flex items-center justify-between gap-1 border-b border-zinc-850 ${
+                    isProMobile ? 'h-7 px-1.5' : 'h-7 px-2'
+                  } bg-amber-500/10 border-l-2 border-l-amber-400`}
+                >
+                  <span
+                    className={`truncate font-semibold leading-tight text-amber-200 ${
+                      isProMobile ? 'text-[9px]' : 'text-[11px]'
+                    }`}
+                    title={vmdClipName}
+                  >
+                    Motion (VMD)
+                  </span>
+                  <button
+                    type="button"
+                    className={`text-amber-100 bg-amber-950/50 border border-amber-700/50 font-bold uppercase rounded-sm shrink-0 cursor-pointer hover:bg-amber-900/60 ${
+                      isProMobile ? 'text-[7px] px-0.5 py-px' : 'text-[8px] px-1.5 py-0.5'
+                    }`}
+                    title="Turn off imported VMD so timeline keys / bone edits control the pose"
+                    onClick={() => {
+                      if (activeModel?.id && onSetVmdPlaybackEnabled) {
+                        onSetVmdPlaybackEnabled(activeModel.id, false);
+                      }
+                    }}
+                  >
+                    Use timeline
+                  </button>
+                </div>
+              ) : null}
               {TRACK_DEFINITIONS.map((track) => {
                 const isActive = timelineActiveTrack === track.id;
                 return (
@@ -469,12 +541,12 @@ export default function Timeline({
                     key={track.id}
                     onClick={() => onSelectTrack(track.id as TimelineActiveTrack)}
                     className={`flex items-center justify-between hover:bg-zinc-800/50 border-b border-zinc-850 cursor-pointer ${
-                      isProMobile ? 'h-7 px-1.5' : 'h-8 px-3'
+                      isProMobile ? 'h-7 px-1.5' : 'h-7 px-2'
                     } ${isActive ? 'bg-[#39c5bb]/10 border-l-2 border-l-[#39c5bb]' : ''}`}
                   >
                     <span
                       className={`truncate font-semibold pr-1 leading-tight ${
-                        isProMobile ? 'text-[9px]' : 'text-xs pr-2'
+                        isProMobile ? 'text-[9px]' : 'text-[11px] pr-1'
                       } ${isActive ? 'text-[#39c5bb]' : 'text-zinc-300'}`}
                     >
                       {track.label}
@@ -496,10 +568,14 @@ export default function Timeline({
         <div
           ref={timelineScrollRef}
           className="flex-1 min-w-0 overflow-x-auto overflow-y-hidden bg-[#0e0f12] relative touch-pan-x"
-          style={{ scrollbarWidth: 'thin' }}
+          style={{ scrollbarWidth: 'thin', scrollbarColor: '#2a2d35 #0e0f12' }}
+          onTouchStart={isMobile ? onTimelineTouchStart : undefined}
+          onTouchMove={isMobile ? onTimelineTouchMove : undefined}
+          onTouchEnd={isMobile ? onTimelineTouchEnd : undefined}
+          onTouchCancel={isMobile ? onTimelineTouchEnd : undefined}
         >
           <div className="min-w-max h-full flex flex-col" style={{ width: totalWidth }}>
-            <div className="h-7 md:h-8 border-b border-zinc-850 bg-[#16181d] flex relative shrink-0">
+            <div className="h-7 border-b border-zinc-850 bg-[#16181d] flex relative shrink-0">
               <div
                 className="absolute top-0 bottom-0 flex"
                 style={{ left: visStart * frameWidth }}
@@ -537,9 +613,24 @@ export default function Timeline({
 
             <div
               className={`flex-1 overflow-y-auto min-h-0 ${
-                isProMobile ? 'min-h-[100px]' : 'max-md:max-h-[28dvh]'
+                isProMobile ? 'min-h-[140px]' : 'max-md:max-h-[28dvh]'
               }`}
             >
+              {vmdActive ? (
+                <div className="h-7 flex relative border-b border-amber-900/30 bg-amber-500/5">
+                  <div
+                    className="absolute top-1 bottom-1 rounded-sm bg-gradient-to-r from-amber-500/70 to-amber-400/40 border border-amber-400/40 flex items-center px-2 z-[5] pointer-events-none"
+                    style={{
+                      left: `${frameWidth * 0.15}px`,
+                      width: `${Math.max(frameWidth * 4, (maxFrames - 0.3) * frameWidth)}px`,
+                    }}
+                  >
+                    <span className="text-[8px] md:text-[9px] font-bold text-amber-50 truncate">
+                      {vmdClipName} · live VMD — press Use timeline or Add Key to unlock keys
+                    </span>
+                  </div>
+                </div>
+              ) : null}
               {TRACK_DEFINITIONS.map((track) => {
                 const isCameraTrack = track.id === 'camera';
                 const trackKeys = isCameraTrack
@@ -561,7 +652,7 @@ export default function Timeline({
                 return (
                   <div
                     key={track.id}
-                    className={`h-7 md:h-8 flex relative border-b border-zinc-900/40 ${
+                    className={`h-7 flex relative border-b border-zinc-900/40 ${
                       rowHiddenOnMobile ? 'max-md:hidden' : ''
                     }`}
                   >
@@ -646,7 +737,7 @@ export default function Timeline({
         className={`shrink-0 border-t border-zinc-800 bg-[#121418] flex items-center justify-between font-mono text-zinc-400 ${
           isProMobile
             ? 'px-2 py-1.5 text-[8px] min-h-[32px]'
-            : 'px-2 py-1 md:px-4 md:py-0 md:h-8 text-[9px] md:text-[11px]'
+            : 'px-2 py-0.5 md:px-3 md:py-0 md:h-6 text-[8px] md:text-[10px]'
         }`}
       >
         {isProMobile ? (

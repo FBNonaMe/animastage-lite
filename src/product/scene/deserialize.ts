@@ -2,6 +2,7 @@ import type { AppState } from '../../types';
 import type { AnimaStageScene } from './types';
 import { qualityModeToPatch } from './qualityMode';
 import { getCameraTemplateId } from '../templates/cameraPresets';
+import { DEFAULT_SCENE_COMPOSER, normalizeSceneComposerLights } from '../../sceneComposer';
 
 export interface RestoreSceneOptions {
   viewerSafe?: boolean;
@@ -18,6 +19,18 @@ export function deserializeScene(
 ): AppState {
   const viewerSafe = options?.viewerSafe ?? false;
   const qPatch = qualityModeToPatch(scene.settings.quality, viewerSafe);
+  const storedComposer = scene.studio?.sceneComposer;
+  const sceneComposer = storedComposer
+    ? {
+        ...DEFAULT_SCENE_COMPOSER,
+        ...storedComposer,
+        lights: normalizeSceneComposerLights(storedComposer.lights),
+        effectLevels: {
+          ...DEFAULT_SCENE_COMPOSER.effectLevels,
+          ...storedComposer.effectLevels,
+        },
+      }
+    : prev.sceneComposer;
 
   const existingModels = prev.models;
   const models =
@@ -61,6 +74,13 @@ export function deserializeScene(
     rtxModeEnabled: viewerSafe ? false : scene.fx.rtxModeEnabled,
     models,
     isPlaying: viewerSafe ? true : prev.isPlaying,
+    exportMetadata: scene.exportMetadata ?? prev.exportMetadata ?? null,
+    sceneStudio: scene.studio?.sceneStudio ?? prev.sceneStudio,
+    sceneDirector: scene.studio?.sceneDirector ?? prev.sceneDirector,
+    sceneComposer,
+    dynamicSky: scene.studio?.dynamicSky ?? prev.dynamicSky,
+    sceneBackground: scene.studio?.sceneBackground ?? prev.sceneBackground,
+    sceneHdr: scene.studio?.sceneHdr ?? prev.sceneHdr,
   };
 }
 

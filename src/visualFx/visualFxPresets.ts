@@ -65,10 +65,11 @@ export interface LookPresetConfig {
   patch: Partial<VisualFxSettings>;
 }
 
+/** New projects: effects off — user enables Bloom / DOF / SSAO / weather manually (RP4). */
 export const DEFAULT_VISUAL_FX: VisualFxSettings = {
   bloomEnabled: false,
-  bloomIntensity: 0.45,
-  bloomThreshold: 0.55,
+  bloomIntensity: 0.42,
+  bloomThreshold: 0.48,
   vignetteEnabled: false,
   vignetteIntensity: 0.45,
   dofEnabled: false,
@@ -89,7 +90,7 @@ export const DEFAULT_VISUAL_FX: VisualFxSettings = {
   wetness: 0,
   snowGround: 0,
   postFxStackEnabled: true,
-  ssaoEnabled: true,
+  ssaoEnabled: false,
   ssaoIntensity: 1.05,
   ssaoRadius: 0.32,
   ssaoHalfRes: true,
@@ -102,6 +103,18 @@ export const DEFAULT_VISUAL_FX: VisualFxSettings = {
   letterbox239: false,
   materialDetailing: true,
   materialSmoothing: 0.55,
+  renderMode: 'asrp',
+  customLutUrl: null,
+  customLutName: null,
+  customLutIntensity: 1,
+  customLutEnabled: false,
+  postFxStackOrder: 'bloom_then_grade',
+  rayMmdColorGrade: undefined,
+  rayMmdBloom: undefined,
+  rayMmdSsr: undefined,
+  rayMmdVignette: undefined,
+  rayMmdLens: undefined,
+  animeNpr: undefined,
 };
 
 export const SCENE_PRESETS: Record<ScenePresetId, ScenePresetConfig> = {
@@ -130,7 +143,7 @@ export const SCENE_PRESETS: Record<ScenePresetId, ScenePresetConfig> = {
     label: 'Sunset',
     background: '#2a1838',
     environment: 'sunset',
-    showEnvironmentBackground: true,
+    showEnvironmentBackground: false,
     fog: { color: '#3d2848', near: 18, far: 90 },
     floorColor: '#1a1420',
     floorMetalness: 0.28,
@@ -152,7 +165,7 @@ export const SCENE_PRESETS: Record<ScenePresetId, ScenePresetConfig> = {
     label: 'Cyber City',
     background: '#060818',
     environment: 'city',
-    showEnvironmentBackground: true,
+    showEnvironmentBackground: false,
     fog: { color: '#0a1028', near: 20, far: 80 },
     floorColor: '#0c1020',
     floorMetalness: 0.62,
@@ -173,7 +186,7 @@ export const SCENE_PRESETS: Record<ScenePresetId, ScenePresetConfig> = {
     label: 'Outdoor Park',
     background: '#b8d4f0',
     environment: 'park',
-    showEnvironmentBackground: true,
+    showEnvironmentBackground: false,
     fog: { color: '#c8dcf0', near: 35, far: 120 },
     floorColor: '#2a3828',
     floorMetalness: 0.08,
@@ -301,6 +314,30 @@ export const COLOR_GRADES: Record<ColorGradePresetId, ColorGradeConfig> = {
     brightness: -0.08,
     contrast: 0.28,
     sepia: 0.18,
+  },
+  filmic: {
+    id: 'filmic',
+    label: 'Filmic',
+    hue: 0.01,
+    saturation: -0.06,
+    brightness: -0.02,
+    contrast: 0.14,
+  },
+  high_contrast: {
+    id: 'high_contrast',
+    label: 'High Contrast',
+    hue: 0,
+    saturation: 0.08,
+    brightness: -0.03,
+    contrast: 0.32,
+  },
+  soft: {
+    id: 'soft',
+    label: 'Soft',
+    hue: 0.02,
+    saturation: 0.06,
+    brightness: 0.05,
+    contrast: -0.06,
   },
 };
 

@@ -1,57 +1,50 @@
-# Google Play Console — AnimaStage Lite (com.webmmd.suite)
-# Copy sections into Play Console → Main store listing
-# Author: FBNonaMe | https://animastage-lite.app
+# AnimaStage Lite — Google Play listing copy
+# Package: com.webmmd.suite
+# versionName 1.3.0 · versionCode 7
+# Signing: unchanged (existing upload keystore — do not rotate)
 
-## App name (max 30 chars)
-AnimaStage Lite
-
-## Short description (max 80 chars)
-MMD studio on Android: PMX models, VMD motion, timeline, physics, MP4 export.
+## Short description (<=80 chars)
+MMD studio: PMX/GLB, VMD, fidelity look, LUT, Shorts MP4
 
 ## Full description
-AnimaStage Lite by FBNonaMe is a portrait MMD (MikuMikuDance) studio for your phone.
+AnimaStage Lite is a full MikuMikuDance-style studio on your phone — not a limited demo.
 
-Load a folder or ZIP with PMX/PMD models, textures, and optional VMD motion. Preview in 3D with WebGL, play animations, edit morphs and bones on the timeline, apply bloom FX, and export MP4 video.
+Load PMX, PMD, or GLB/FBX characters, play VMD motion, grade the look with MMD Fidelity and custom LUTs, frame shots in Camera Studio, and export MP4 for Shorts. Everything runs on your device. No account required.
 
 Features:
-• Import PMX/PMD + textures (PNG, TGA, BMP) from ZIP or folder
-• VMD motion playback with optional camera motion
-• Timeline with keyframes, curves, and animation templates
-• Morph and bone controls
-• Bullet physics (WASM) when supported on device
-• Portrait fullscreen interface optimized for phones
-• MP4 export via system Share (Gallery, Files, Drive)
-• Client-side only — files stay on your device, no account
+• PMX / PMD / VMD import (drag & drop or folder)
+• GLB / FBX import for Blender and Sketchfab assets
+• MMD Fidelity — classic toon shading and outline
+• Custom LUT (.cube / .3dl) and Bloom ↔ Grade order
+• DDS / BMP textures for older MMD packs
+• Timeline, mocap from video → keyframes
+• Camera Studio / Virtual Cinematography tools
+• 9:16 Shorts and landscape MP4 export
+• Portrait-first studio on Android (Scene, Control, Camera, FX)
 
-User-provided content only — you supply your own models and motions. The app does not include copyrighted characters or music.
+Your models stay on your device. Client-side only.
 
-Requirements: Android 6.0+ (API 23), OpenGL ES 3.0 recommended.
+## Release notes v1.3.0
 
-Official site: https://animastage-lite.app
-Creator: FBNonaMe — https://animastage-lite.app/creator
+What's new in this release:
 
-## Category
-Tools (primary) or Entertainment
+• MMD Fidelity render mode — classic toon shading plus outline for a desktop-MMD look
+• Custom LUT import (.cube / .3dl) with strength control; drag LUT onto the viewport
+• Effect stack order — Bloom before color grade/LUT, or grade before Bloom (modoki-style)
+• DDS and BMP texture loading for older MMD models (fewer broken materials)
+• Improved vertical 9:16 framing — camera pulls back so characters fit the frame
+• Stronger GLB/FBX support: materials and lighting, mocap bone mapping for generic skeletons
+• Video mocap → timeline keys (body tracks: head, arms, spine, hips)
+• Cinematography Studio (VCS) — director modes, shots, lighting, camera tools
+• Landing and product positioning: full studio on Web and Android (not a demo)
+• Stability fixes: GLB morph/template crash, Canvas eventSource, bloom defaults, import lighting
 
-## Tags / keywords (for ASO, not a Play field)
-MMD Android, MikuMikuDance mobile, PMX viewer, VMD player, WebMMD, 3D animation
+Bug fixes and polish:
+• Over-bright / white GLB materials reduced
+• Bloom and exposure defaults for cinematic and anime looks
+• Safer texture repair when PMX points to missing TGA but BMP/DDS/PNG exist
+• Portrait format no longer crops characters as tightly
 
-## Privacy policy URL (required)
-https://animastage-lite.app/privacy-policy.html
-
-## Website URL
-https://animastage-lite.app
-
-## Contact email (Play Console)
-Boyko2005maxim@gmail.com
-
-## Package name
-com.webmmd.suite
-
-## Release notes v1.2.3
-• Portrait MMD studio — PMX/PMD + VMD import
-• Timeline, curves, morphs, bones, Camera Studio
-• Bullet physics (WASM) and bloom FX
-• MP4 export via Share menu
-• Performance presets (Perf / Balanced / Quality)
-• Client-side — no account, no cloud upload
+## Upload paths
+AAB (Play Console): store/releases/AnimaStage-Lite-v1.3.0-7.aab
+Signed APK (sideload / testing): store/releases/AnimaStage-Lite-v1.3.0-7.apk

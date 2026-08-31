@@ -77,8 +77,11 @@ export function tickAdaptiveQuality(frameMs: number): void {
     stressStreak = Math.max(0, stressStreak - 1);
   }
 
+  // Character-quality-first: physics is priority 5 — downgrade only after
+  // visual cuts (degrade L2+) have already been applied and stress persists.
   if (
     !isPhysicsQualityManualLock() &&
+    degradeLevel >= 2 &&
     stressStreak >= ADAPTIVE_STRESS_FRAMES &&
     canChangeTier(now)
   ) {
@@ -89,7 +92,7 @@ export function tickAdaptiveQuality(frameMs: number): void {
       syncPhysicsRateForEffectiveTier();
       lastTierChangeMs = now;
       degrading = true;
-      degradeMessage = 'Frame budget exceeded → reducing load';
+      degradeMessage = 'Frame budget exceeded → reducing physics';
       stressStreak = 0;
     }
   }

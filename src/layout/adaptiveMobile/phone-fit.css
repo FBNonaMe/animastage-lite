@@ -1,0 +1,510 @@
+/**
+ * Phone fit layer — iPhone + Android containment.
+ * Nothing clips off-screen; safe areas; small/large phone + landscape.
+ */
+
+/* Touch min-height must not blow up tiny controls */
+html[data-studio-touch='1'] .pro-sheet__snap-dot,
+html[data-studio-touch='1'] .am-toolbox__handle,
+html[data-studio-touch='1'] .pro-sheet__grab {
+  min-height: 0 !important;
+  min-width: 0 !important;
+  height: auto;
+  width: auto;
+}
+
+html[data-studio-touch='1'] .pro-sheet__close {
+  min-height: var(--studio-touch-min, 44px);
+}
+
+/* App-shell safe-area: on phones only pad L/R — top/bottom owned by chrome */
+.studio-pro-mobile.studio-safe-area,
+.studio-pro-mobile.app-shell.studio-safe-area {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  width: 100%;
+  max-width: 100vw;
+  height: var(--app-height, 100dvh);
+  max-height: var(--app-height, 100dvh);
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Avoid double safe-area: app-shell already pads; shell must not pad again */
+.studio3-shell.studio3-shell--mobile-adaptive {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  display: flex;
+  flex-direction: column;
+  --am-dock-h: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  --am-chrome-reserve: calc(3rem + var(--am-dock-h));
+  --am-sheet-cap: max(
+    42dvh,
+    min(88dvh, calc(var(--app-height, 100dvh) - var(--am-chrome-reserve) - var(--safe-top, 0px)))
+  );
+}
+
+.studio-pro-mobile {
+  --am-dock-h: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+  --am-chrome-reserve: calc(3.25rem + var(--am-dock-h));
+  --am-sheet-cap: max(
+    42dvh,
+    min(88dvh, calc(var(--app-height, 100dvh) - var(--am-chrome-reserve) - var(--safe-top, 0px)))
+  );
+}
+
+.studio3-shell--mobile-adaptive .studio3-shell__main {
+  flex: 1 1 0;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+.studio3-shell--mobile-adaptive .studio3-viewport-host {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* —— Mobile header —— */
+.studio3-shell--mobile-adaptive .studio3-header-mobile,
+.studio3-shell--mobile-adaptive .studio3-shell__header.studio3-header-mobile {
+  flex-shrink: 0;
+  flex-wrap: nowrap !important;
+  gap: 0.35rem !important;
+  padding-top: max(0.4rem, var(--safe-top)) !important;
+  padding-bottom: 0.4rem !important;
+  padding-left: max(0.65rem, var(--safe-left)) !important;
+  padding-right: max(0.65rem, var(--safe-right)) !important;
+  min-height: 0;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.studio3-shell--mobile-adaptive .studio3-header-mobile > .flex.items-center.gap-2,
+.studio3-shell--mobile-adaptive .studio3-header-mobile > div.min-w-0 {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.studio3-shell--mobile-adaptive .studio3-header-mobile .studio3-shell__ws-actions {
+  flex-shrink: 0;
+  flex-wrap: nowrap !important;
+  max-width: 55%;
+}
+
+.studio3-shell--mobile-adaptive .studio3-mobile-keep {
+  flex-shrink: 0;
+}
+
+/* —— Tool rail / bottom chrome —— */
+.studio3-mobile-nav {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 100vw;
+  overflow: hidden;
+  padding-bottom: var(--safe-bottom);
+  box-sizing: border-box;
+  background: #0c0f14;
+  border-top: 1px solid #1e2430;
+}
+
+.studio-pro-mobile .am-tool-rail {
+  padding-bottom: 2px;
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.studio3-mobile-nav .am-tool-rail {
+  padding-left: max(4px, var(--safe-left));
+  padding-right: max(4px, var(--safe-right));
+  padding-bottom: 2px;
+  border-top: none;
+}
+
+.am-tool-rail__scroll {
+  max-width: 100%;
+  padding-bottom: 2px;
+}
+
+.am-tool-rail__item {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.studio-pro-mobile .pro-nav {
+  padding-left: max(2px, var(--safe-left));
+  padding-right: max(2px, var(--safe-right));
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.studio-pro-mobile .pro-nav__item span,
+.studio-pro-mobile .pro-nav__play span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* —— Snap sheets: stay on screen —— */
+.pro-sheet {
+  left: max(0px, var(--safe-left)) !important;
+  right: max(0px, var(--safe-right)) !important;
+  width: auto !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  max-height: var(--am-sheet-cap, 88dvh) !important;
+}
+
+.pro-sheet--timeline {
+  /* Sit above the bottom tool rail so tracks/ruler stay visible */
+  bottom: var(--am-dock-h, calc(4.25rem + env(safe-area-inset-bottom, 0px))) !important;
+  height: min(var(--pro-sheet-max, 85dvh), var(--am-sheet-cap, 85dvh)) !important;
+  max-height: var(--am-sheet-cap, 85dvh) !important;
+}
+
+.pro-sheet--content {
+  bottom: var(--am-dock-h, calc(4.25rem + env(safe-area-inset-bottom, 0px))) !important;
+  max-height: var(--am-sheet-cap, 88dvh) !important;
+}
+
+.am-sheet-scroll {
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+}
+
+.pro-sheet__body--content {
+  max-height: calc(var(--am-sheet-cap, 88dvh) - 3.25rem) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.pro-sheet__body--timeline {
+  overflow: hidden !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.pro-sheet__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pro-sheet-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.pro-sheet__body--timeline > .pro-sheet-panel,
+.pro-sheet__body--timeline > .pro-control-sheet {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.pro-sheet-panel .editor-timeline-shell,
+.pro-sheet-panel .editor-timeline-shell--pro,
+.pro-control-sheet .editor-timeline-shell,
+.pro-control-sheet .editor-timeline-shell--pro,
+.pro-sheet-panel #mmd-timeline,
+.pro-control-sheet #mmd-timeline {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+}
+
+.pro-sheet-panel .studio-sidebar,
+.pro-sheet-panel .studio-sidebar__scroll,
+.pro-sheet-panel .pro-mobile-sheet-content {
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box;
+}
+
+.pro-sheet-panel .studio-sidebar__scroll {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  max-height: calc(var(--am-sheet-cap, 88dvh) - 4.5rem) !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.pro-sheet-panel .studio3-panel,
+.pro-sheet-panel .studio3-panel__body {
+  max-width: 100%;
+  min-width: 0;
+  max-height: calc(var(--am-sheet-cap, 88dvh) - 4rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* —— Viewport priority (no forced overflow) —— */
+.am-viewport-priority {
+  min-height: 0 !important;
+  flex: 1 1 0;
+}
+
+/* UI3 phone: same full-bleed viewport fill as Pro Mobile (no letterbox void) */
+.studio3-shell--mobile-adaptive .studio3-viewport-host,
+.studio3-shell--mobile-adaptive .studio3-viewport-fill,
+.studio3-shell--mobile-adaptive .studio-viewport-column,
+.studio3-shell--mobile-adaptive #mmd-viewport,
+.studio3-shell--mobile-adaptive .studio-viewport-stage {
+  min-height: 0 !important;
+  max-height: none !important;
+  height: 100%;
+}
+
+.studio3-shell--mobile-adaptive .studio-viewport-stage {
+  position: relative;
+  flex: 1 1 0;
+}
+
+.studio3-shell--mobile-adaptive .studio-viewport-stage [data-viewport-format],
+.studio3-shell--mobile-adaptive .studio-viewport-stage [data-viewport-format] > div {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+  aspect-ratio: unset !important;
+}
+
+/* —— Empty state —— */
+.studio3-empty-hint {
+  padding: max(0.75rem, var(--safe-left)) max(0.75rem, var(--safe-right));
+  box-sizing: border-box;
+}
+
+.studio3-empty-hint__card {
+  width: min(17rem, calc(100vw - 2rem - var(--safe-left) - var(--safe-right)));
+  max-width: calc(100% - 0.5rem);
+  box-sizing: border-box;
+  padding: 0.85rem 1rem;
+}
+
+/* —— Context strip + toolbox stay inside —— */
+.am-viewport-chrome {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.am-context-strip {
+  max-width: min(100%, calc(100vw - 1rem - var(--safe-left) - var(--safe-right)));
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+.am-toolbox {
+  max-height: calc(100% - 0.5rem - var(--safe-top));
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.am-toolbox::-webkit-scrollbar {
+  display: none;
+}
+
+/* Perf HUD clear of bottom chrome — hide on quiet phone home */
+.studio-pro-mobile .ds-perf-hud,
+.studio-pro-mobile .ds-perf-hud--pro-mobile,
+.studio-pro-mobile .viewport-perf-toast,
+.studio3-shell--mobile-adaptive .ds-perf-hud,
+.studio3-shell--mobile-adaptive .viewport-perf-toast {
+  display: none !important;
+}
+
+/* —— Ultra-small phones (iPhone SE / small Android) —— */
+@media (max-width: 374px) {
+  :root {
+    --studio-touch-min: 40px;
+  }
+
+  .am-tool-rail__item {
+    min-width: 2.85rem;
+    min-height: 40px;
+    padding: 2px 4px;
+    font-size: 8px;
+    gap: 1px;
+  }
+
+  .am-tool-rail__item svg {
+    width: 1.05rem;
+    height: 1.05rem;
+  }
+
+  .am-toolbox__btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .am-context-strip__chip {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 10px;
+  }
+
+  .studio3-shell--mobile-adaptive .studio3-header-mobile {
+    padding-top: max(0.35rem, var(--safe-top)) !important;
+  }
+
+  .studio3-shell--mobile-adaptive .studio3-mobile-keep {
+    min-width: 40px !important;
+    min-height: 40px !important;
+    padding: 0.35rem !important;
+  }
+
+  .studio3-empty-hint__card {
+    padding: 0.7rem 0.85rem;
+  }
+
+  .pro-nav__item {
+    min-height: 44px;
+    font-size: 8px;
+    padding: 4px 2px;
+  }
+
+  .pro-nav__play {
+    min-height: 48px;
+    margin-top: -8px;
+    padding: 6px 8px;
+  }
+}
+
+/* —— Large phones (Pro Max / Pixel XL class) —— */
+@media (min-width: 414px) and (max-width: 768px) {
+  .am-tool-rail__item {
+    min-width: 3.65rem;
+    font-size: 9.5px;
+  }
+
+  .studio3-empty-hint__card {
+    max-width: 18rem;
+  }
+}
+
+/* —— Landscape phones / fold unfolded short height —— */
+@media (orientation: landscape) and (max-height: 500px) {
+  .studio-pro-mobile,
+  .studio3-shell--mobile-adaptive {
+    --am-chrome-reserve: 3.25rem;
+    --am-sheet-cap: min(78dvh, calc(var(--app-height, 100dvh) - 2.75rem));
+  }
+
+  .studio3-shell--mobile-adaptive .studio3-header-mobile {
+    padding-top: max(0.2rem, var(--safe-top)) !important;
+    padding-bottom: 0.2rem !important;
+  }
+
+  .studio3-shell--mobile-adaptive .studio3-header-mobile p.text-\[9px\] {
+    display: none;
+  }
+
+  .am-tool-rail {
+    padding-top: 2px;
+    padding-bottom: 0;
+  }
+
+  .am-tool-rail__item {
+    min-width: 2.75rem;
+    min-height: 36px;
+    font-size: 7.5px;
+    flex-direction: row;
+    gap: 4px;
+    padding: 2px 6px;
+  }
+
+  .am-toolbox {
+    gap: 3px;
+    padding: 3px;
+  }
+
+  .am-toolbox__btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .am-context-strip {
+    padding: 3px 6px;
+  }
+
+  .studio3-empty-hint__card {
+    padding: 0.55rem 0.75rem;
+    max-width: min(20rem, 70vw);
+  }
+
+  .studio3-empty-hint__card p.text-\[10px\] {
+    display: none;
+  }
+
+  .pro-nav__item {
+    min-height: 40px;
+    font-size: 8px;
+  }
+
+  .pro-nav__play {
+    min-height: 44px;
+    margin-top: -6px;
+  }
+}
+
+/* —— Very short portrait (browser chrome eating height) —— */
+@media (max-height: 620px) and (orientation: portrait) {
+  .studio-pro-mobile,
+  .studio3-shell--mobile-adaptive {
+    --am-sheet-cap: min(82dvh, calc(var(--app-height, 100dvh) - var(--am-chrome-reserve)));
+  }
+
+  .am-tool-rail__item span {
+    font-size: 8px;
+  }
+}
+
+/* —— Reduce motion —— */
+@media (prefers-reduced-motion: reduce) {
+  .pro-sheet,
+  .am-context-strip__chip,
+  .am-toolbox__btn,
+  .am-tool-rail__item {
+    transition: none !important;
+  }
+}

@@ -5,7 +5,11 @@ import { tickAdaptiveQuality } from '../perf/adaptiveQuality';
 import { tickGpuAdaptiveQuality } from '../perf/gpuAdaptive';
 import { STABLE_FPS_MAX_DELTA_MS } from '../perf/stableFps';
 import { tickStablePerfResponse } from '../perf/stablePerfResponse';
-import { tickPerfGovernor, getPerfGovernorScale } from '../perf/controller/perfGovernor';
+import {
+  tickPerfGovernor,
+  getPerfGovernorScale,
+  getPerfGovernorFxGate,
+} from '../perf/controller/perfGovernor';
 import {
   recordFrameDelta,
   getPerfSnapshot,
@@ -14,6 +18,7 @@ import {
   setSceneTriangleCount,
   syncTriangleStressGovernor,
 } from '../perf/sceneTriangleStress';
+import { setGovernorPhysicsCap } from '../perf/physicsQualityControl';
 import { isRecordingCapture } from '../video/recordingCapture';
 
 export interface ViewportPerfSnapshot {
@@ -58,6 +63,13 @@ export default function ViewportPerfMonitor({
     const recording = isRecordingVideo || isRecordingCapture();
 
     tickPerfGovernor(snap.fps, now, recording);
+    // Cloth/hair throttle under governor — skipped during capture so export stays full-rate.
+    if (!recording) {
+      const gate = getPerfGovernorFxGate();
+      setGovernorPhysicsCap(gate.reducePhysics ? 1 : null);
+    } else {
+      setGovernorPhysicsCap(null);
+    }
     tickAdaptiveQuality(snap.frameMsAvg);
     tickStablePerfResponse(snap.frameMsAvg, snap.fps, now, recording);
     tickGpuAdaptiveQuality(

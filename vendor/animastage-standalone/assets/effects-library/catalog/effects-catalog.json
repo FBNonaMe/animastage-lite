@@ -1,0 +1,322 @@
+{
+  "schema": "animestage.effects-catalog/v1",
+  "generatedAt": "2026-08-30T17:51:49.622Z",
+  "effects": [
+    {
+      "id": "animestage.material.original",
+      "version": "1.0.0",
+      "name": "Original MMD Materials",
+      "author": "AnimaStage",
+      "category": "Materials",
+      "status": "PRODUCTION_READY",
+      "runtimeCompatible": true
+    },
+    {
+      "id": "animestage.material.figure-pbr",
+      "version": "1.0.0",
+      "name": "Figure PBR",
+      "author": "AnimaStage",
+      "category": "Materials",
+      "status": "PRODUCTION_READY",
+      "runtimeCompatible": true
+    },
+    {
+      "id": "animestage.material.mmd2",
+      "version": "1.0.0",
+      "name": "MMD 2.0",
+      "author": "AnimaStage",
+      "category": "Anime / Toon",
+      "status": "PRODUCTION_READY",
+      "runtimeCompatible": true
+    },
+    {
+      "id": "raycast.ray-mmd.color-grading",
+      "version": "1.5.2",
+      "name": "Ray-MMD Color Grading",
+      "author": "Rui / ray-cast + AnimaStage adapter",
+      "category": "post processing",
+      "status": "GPU_TESTED",
+      "runtimeCompatible": true,
+      "bundled": true,
+      "rendererSupport": [
+        "webgl2",
+        "raster",
+        "anime-npr",
+        "rtx"
+      ],
+      "requirements": {
+        "features": [
+          "webgl2",
+          "effect-composer"
+        ],
+        "limits": {
+          "maxTextureUnits": 4
+        },
+        "policy": "disable"
+      },
+      "originalEntry": "Shader/ColorGrading.fxsub",
+      "adaptedEntry": "adapted/ray-color-grading-pass.js",
+      "revision": {
+        "label": "1.5.2",
+        "commit": "a425ab6d4219a047f8d64ac7fdc4f73c76c31dc8"
+      },
+      "license": {
+        "type": "MIT",
+        "redistributionAllowed": true,
+        "commercialUseAllowed": true,
+        "modificationAllowed": true
+      },
+      "archiveSha256": "5b8c095a4d77c0a6f259829c2cbdb1a279a5d993217e3f277f578a9cf7328494"
+    },
+    {
+      "id": "raycast.ray-mmd.hdr-bloom",
+      "version": "1.5.2",
+      "name": "Ray-MMD HDR Bloom",
+      "author": "Rui / ray-cast + AnimaStage adapter",
+      "category": "post processing",
+      "status": "GPU_TESTED",
+      "runtimeCompatible": true,
+      "bundled": true,
+      "rendererSupport": [
+        "webgl2",
+        "raster",
+        "anime-npr",
+        "rtx"
+      ],
+      "requirements": {
+        "features": [
+          "webgl2",
+          "effect-composer"
+        ],
+        "limits": {
+          "maxTextureUnits": 8,
+          "maxTextureSize": 2048
+        },
+        "policy": "disable"
+      },
+      "originalEntry": "Shader/PostProcessBloom.fxsub",
+      "adaptedEntry": "adapted/ray-bloom-pass.js",
+      "revision": {
+        "label": "1.5.2",
+        "commit": "a425ab6d4219a047f8d64ac7fdc4f73c76c31dc8"
+      },
+      "license": {
+        "type": "MIT",
+        "redistributionAllowed": true,
+        "commercialUseAllowed": true,
+        "modificationAllowed": true
+      },
+      "archiveSha256": "5b8c095a4d77c0a6f259829c2cbdb1a279a5d993217e3f277f578a9cf7328494"
+    },
+    {
+      "id": "raycast.ray-mmd",
+      "version": "1.5.2",
+      "name": "Ray-MMD 1.5.2 source",
+      "author": "Rui / ray-cast",
+      "category": "materials",
+      "status": "VERIFIED",
+      "runtimeCompatible": false,
+      "bundled": true,
+      "downloadPolicy": "bundle-allowed",
+      "officialUrl": "https://github.com/ray-cast/ray-mmd",
+      "revision": {
+        "type": "tag",
+        "label": "1.5.2",
+        "commit": "a425ab6d4219a047f8d64ac7fdc4f73c76c31dc8"
+      },
+      "license": {
+        "id": "MIT",
+        "url": "https://github.com/ray-cast/ray-mmd/blob/master/LICENSE.txt",
+        "redistributionAllowed": true,
+        "commercialUseAllowed": true,
+        "attributionRequired": true,
+        "reviewRequired": false
+      },
+      "archiveSha256": "5b8c095a4d77c0a6f259829c2cbdb1a279a5d993217e3f277f578a9cf7328494",
+      "acceptedFiles": 857,
+      "quarantinedFiles": 0,
+      "rejectedFiles": 2,
+      "unresolvedDependencies": 2
+    },
+    {
+      "id": "kh40.animasa",
+      "version": "0.0.0-source",
+      "name": "Ani:Masa source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runtimeCompatible": false,
+      "bundled": false,
+      "downloadPolicy": "metadata-only",
+      "officialUrl": "https://github.com/KH40-khoast40/AniMasa",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "b99d51e2cb4d5215bace900a3abee2acefc26492"
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/AniMasa#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "archiveSha256": "",
+      "acceptedFiles": 0,
+      "quarantinedFiles": 0,
+      "rejectedFiles": 0,
+      "unresolvedDependencies": 0
+    },
+    {
+      "id": "kh40.drop-shadow-stage",
+      "version": "0.0.0-source",
+      "name": "DropShadow Stage source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runtimeCompatible": false,
+      "bundled": false,
+      "downloadPolicy": "metadata-only",
+      "officialUrl": "https://github.com/KH40-khoast40/DropShadow_Stage",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "60486b905d7ea3bba44b19c623dfab0c01a3e406"
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/DropShadow_Stage#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "archiveSha256": "",
+      "acceptedFiles": 0,
+      "quarantinedFiles": 0,
+      "rejectedFiles": 0,
+      "unresolvedDependencies": 0
+    },
+    {
+      "id": "kh40.mes40",
+      "version": "0.0.0-source",
+      "name": "MES40 source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runtimeCompatible": false,
+      "bundled": false,
+      "downloadPolicy": "metadata-only",
+      "officialUrl": "https://github.com/KH40-khoast40/MES40",
+      "revision": {
+        "type": "branch",
+        "label": "master",
+        "commit": "58a27f0c59e52498ffeeb08b7949471ff5123a47"
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/MES40#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "archiveSha256": "",
+      "acceptedFiles": 0,
+      "quarantinedFiles": 0,
+      "rejectedFiles": 0,
+      "unresolvedDependencies": 0
+    },
+    {
+      "id": "kh40.shadekai",
+      "version": "0.0.0-source",
+      "name": "Shadekai source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runtimeCompatible": false,
+      "bundled": false,
+      "downloadPolicy": "metadata-only",
+      "officialUrl": "https://github.com/KH40-khoast40/Shadekai",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "d0817cc65fd007c31aeb2d7307f3c145e50b55d9"
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/Shadekai#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": false,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "archiveSha256": "",
+      "acceptedFiles": 0,
+      "quarantinedFiles": 0,
+      "rejectedFiles": 0,
+      "unresolvedDependencies": 0
+    },
+    {
+      "id": "kh40.tonemap-raycast",
+      "version": "0.0.0-source",
+      "name": "ToneMap raycast source",
+      "author": "KH40",
+      "category": "post processing",
+      "status": "DISCOVERED",
+      "runtimeCompatible": false,
+      "bundled": false,
+      "downloadPolicy": "metadata-only",
+      "officialUrl": "https://github.com/KH40-khoast40/ToneMap_raycast",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": "aef3633d96a5c9841d47b72ff60916dd253002ea"
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/ToneMap_raycast#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "archiveSha256": "",
+      "acceptedFiles": 0,
+      "quarantinedFiles": 0,
+      "rejectedFiles": 0,
+      "unresolvedDependencies": 0
+    },
+    {
+      "id": "kh40.working-floor-blur",
+      "version": "0.0.0-source",
+      "name": "WorkingFloor2 Blur source",
+      "author": "KH40",
+      "category": "weather fx",
+      "status": "DISCOVERED",
+      "runtimeCompatible": false,
+      "bundled": false,
+      "downloadPolicy": "metadata-only",
+      "officialUrl": "https://github.com/KH40-khoast40/WorkingFloor2_Blur",
+      "revision": {
+        "type": "branch",
+        "label": "main",
+        "commit": ""
+      },
+      "license": {
+        "id": "LicenseRef-KH40-Repository-Rules",
+        "url": "https://github.com/KH40-khoast40/WorkingFloor2_Blur#rules",
+        "redistributionAllowed": false,
+        "commercialUseAllowed": null,
+        "attributionRequired": true,
+        "reviewRequired": true
+      },
+      "archiveSha256": "",
+      "acceptedFiles": 0,
+      "quarantinedFiles": 0,
+      "rejectedFiles": 0,
+      "unresolvedDependencies": 0
+    }
+  ]
+}

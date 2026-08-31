@@ -6,6 +6,7 @@ import { isBeginnerMode } from '../../product/ui/beginnerMode';
 import type { ProSnapLevel } from './types';
 import type { StudioUiMode } from '../../flow/types';
 import type { QualityMode } from '../../product/scene/types';
+import type { EditorInterfaceId } from '../../uiVersions';
 
 interface ProMobileMenuSheetProps {
   open: boolean;
@@ -19,6 +20,8 @@ interface ProMobileMenuSheetProps {
   onOpenFxTab: () => void;
   uiMode: StudioUiMode;
   onUiModeChange: (mode: StudioUiMode) => void;
+  editorInterface: EditorInterfaceId;
+  onEditorInterfaceChange: (id: EditorInterfaceId) => void;
   qualityMode: QualityMode;
   onQualityModeChange: (mode: QualityMode) => void;
   optimizedHint?: boolean;
@@ -37,6 +40,8 @@ export default function ProMobileMenuSheet({
   onOpenFxTab,
   uiMode,
   onUiModeChange,
+  editorInterface,
+  onEditorInterfaceChange,
   qualityMode,
   onQualityModeChange,
   optimizedHint,
@@ -58,6 +63,8 @@ export default function ProMobileMenuSheet({
         <ProMobileMenuSettings
           uiMode={uiMode}
           onUiModeChange={onUiModeChange}
+          editorInterface={editorInterface}
+          onEditorInterfaceChange={onEditorInterfaceChange}
           qualityMode={qualityMode}
           onQualityModeChange={onQualityModeChange}
           optimizedHint={optimizedHint}

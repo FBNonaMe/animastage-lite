@@ -114,7 +114,7 @@ function Read-PasswordPlain {
 }
 
 Write-Host ""
-Write-Host "WebMMD Suite - Android signing setup" -ForegroundColor Cyan
+Write-Host "AnimaStage Lite - Android signing setup" -ForegroundColor Cyan
 Write-Host ""
 
 if (Test-Path $KeystoreProps) {
@@ -187,12 +187,12 @@ if (Test-Path -LiteralPath $keystorePath) {
     exit 1
   }
 
-  $dname = Read-Host "Certificate name (CN) [WebMMD Suite]"
+  $dname = Read-Host "Certificate name (CN) [AnimaStage Lite]"
   if ([string]::IsNullOrWhiteSpace($dname)) {
-    $dname = "WebMMD Suite"
+    $dname = "AnimaStage Lite"
   }
 
-  $dnameValue = "CN=$dname, OU=Mobile, O=WebMMD Suite, C=RU"
+  $dnameValue = "CN=$dname, OU=Mobile, O=FBNonaMe, C=RU"
 
   Write-Host ""
   Write-Host "Creating keystore..." -ForegroundColor Cyan

@@ -333,7 +333,13 @@ export default function MMDModel({
       isCurrent = false;
       if (loadedMesh) {
         if (helperRef.current) {
-          helperRef.current.remove(loadedMesh);
+          try {
+            if (helperRef.current.meshes.indexOf(loadedMesh) >= 0) {
+              helperRef.current.remove(loadedMesh);
+            }
+          } catch {
+            /* mesh never added — common on aborted loads */
+          }
         }
         if (loadedMesh.geometry) loadedMesh.geometry.dispose();
         if (loadedMesh.material) {

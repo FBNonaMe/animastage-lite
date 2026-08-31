@@ -3,7 +3,7 @@ import { MQ } from '../layout/breakpoints';
 import { isNativeApp } from '../utils/platform';
 import { useMediaQuery } from './useMediaQuery';
 
-export type MobilePanelTab = 'scene' | 'control' | 'camera' | 'fx';
+export type MobilePanelTab = 'scene' | 'composer' | 'control' | 'camera' | 'fx';
 
 export interface StudioLayout {
   /** iPhone SE width */

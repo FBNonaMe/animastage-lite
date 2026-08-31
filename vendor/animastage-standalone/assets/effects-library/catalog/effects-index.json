@@ -1,0 +1,272 @@
+{
+  "schema": "animestage.effects-index/v1",
+  "sourceSchema": "animestage.effects-catalog/v1",
+  "sourceGeneratedAt": "2026-08-30T17:51:49.622Z",
+  "counts": {
+    "total": 12,
+    "runnable": 5,
+    "bundled": 3
+  },
+  "categories": [
+    "Anime / Toon",
+    "Materials",
+    "materials",
+    "post processing",
+    "weather fx"
+  ],
+  "statuses": [
+    "DISCOVERED",
+    "GPU_TESTED",
+    "PRODUCTION_READY",
+    "VERIFIED"
+  ],
+  "effects": [
+    {
+      "key": "kh40.animasa@0.0.0-source",
+      "id": "kh40.animasa",
+      "version": "0.0.0-source",
+      "name": "Ani:Masa source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runnable": false,
+      "bundled": false,
+      "search": [
+        "kh40.animasa",
+        "ani",
+        "masa",
+        "source",
+        "kh40",
+        "materials",
+        "discovered"
+      ]
+    },
+    {
+      "key": "kh40.drop-shadow-stage@0.0.0-source",
+      "id": "kh40.drop-shadow-stage",
+      "version": "0.0.0-source",
+      "name": "DropShadow Stage source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runnable": false,
+      "bundled": false,
+      "search": [
+        "kh40.drop-shadow-stage",
+        "dropshadow",
+        "stage",
+        "source",
+        "kh40",
+        "materials",
+        "discovered"
+      ]
+    },
+    {
+      "key": "animestage.material.figure-pbr@1.0.0",
+      "id": "animestage.material.figure-pbr",
+      "version": "1.0.0",
+      "name": "Figure PBR",
+      "author": "AnimaStage",
+      "category": "Materials",
+      "status": "PRODUCTION_READY",
+      "runnable": true,
+      "bundled": false,
+      "search": [
+        "animestage.material.figure-pbr",
+        "figure",
+        "pbr",
+        "animastage",
+        "materials",
+        "production_ready"
+      ]
+    },
+    {
+      "key": "kh40.mes40@0.0.0-source",
+      "id": "kh40.mes40",
+      "version": "0.0.0-source",
+      "name": "MES40 source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runnable": false,
+      "bundled": false,
+      "search": [
+        "kh40.mes40",
+        "mes40",
+        "source",
+        "kh40",
+        "materials",
+        "discovered"
+      ]
+    },
+    {
+      "key": "animestage.material.mmd2@1.0.0",
+      "id": "animestage.material.mmd2",
+      "version": "1.0.0",
+      "name": "MMD 2.0",
+      "author": "AnimaStage",
+      "category": "Anime / Toon",
+      "status": "PRODUCTION_READY",
+      "runnable": true,
+      "bundled": false,
+      "search": [
+        "animestage.material.mmd2",
+        "mmd",
+        "2.0",
+        "animastage",
+        "anime",
+        "toon",
+        "production_ready"
+      ]
+    },
+    {
+      "key": "animestage.material.original@1.0.0",
+      "id": "animestage.material.original",
+      "version": "1.0.0",
+      "name": "Original MMD Materials",
+      "author": "AnimaStage",
+      "category": "Materials",
+      "status": "PRODUCTION_READY",
+      "runnable": true,
+      "bundled": false,
+      "search": [
+        "animestage.material.original",
+        "original",
+        "mmd",
+        "materials",
+        "animastage",
+        "production_ready"
+      ]
+    },
+    {
+      "key": "raycast.ray-mmd@1.5.2",
+      "id": "raycast.ray-mmd",
+      "version": "1.5.2",
+      "name": "Ray-MMD 1.5.2 source",
+      "author": "Rui / ray-cast",
+      "category": "materials",
+      "status": "VERIFIED",
+      "runnable": false,
+      "bundled": true,
+      "search": [
+        "raycast.ray-mmd",
+        "ray-mmd",
+        "1.5.2",
+        "source",
+        "rui",
+        "ray-cast",
+        "materials",
+        "verified"
+      ]
+    },
+    {
+      "key": "raycast.ray-mmd.color-grading@1.5.2",
+      "id": "raycast.ray-mmd.color-grading",
+      "version": "1.5.2",
+      "name": "Ray-MMD Color Grading",
+      "author": "Rui / ray-cast + AnimaStage adapter",
+      "category": "post processing",
+      "status": "GPU_TESTED",
+      "runnable": true,
+      "bundled": true,
+      "search": [
+        "raycast.ray-mmd.color-grading",
+        "ray-mmd",
+        "color",
+        "grading",
+        "rui",
+        "ray-cast",
+        "animastage",
+        "adapter",
+        "post",
+        "processing",
+        "gpu_tested"
+      ]
+    },
+    {
+      "key": "raycast.ray-mmd.hdr-bloom@1.5.2",
+      "id": "raycast.ray-mmd.hdr-bloom",
+      "version": "1.5.2",
+      "name": "Ray-MMD HDR Bloom",
+      "author": "Rui / ray-cast + AnimaStage adapter",
+      "category": "post processing",
+      "status": "GPU_TESTED",
+      "runnable": true,
+      "bundled": true,
+      "search": [
+        "raycast.ray-mmd.hdr-bloom",
+        "ray-mmd",
+        "hdr",
+        "bloom",
+        "rui",
+        "ray-cast",
+        "animastage",
+        "adapter",
+        "post",
+        "processing",
+        "gpu_tested"
+      ]
+    },
+    {
+      "key": "kh40.shadekai@0.0.0-source",
+      "id": "kh40.shadekai",
+      "version": "0.0.0-source",
+      "name": "Shadekai source",
+      "author": "KH40",
+      "category": "materials",
+      "status": "DISCOVERED",
+      "runnable": false,
+      "bundled": false,
+      "search": [
+        "kh40.shadekai",
+        "shadekai",
+        "source",
+        "kh40",
+        "materials",
+        "discovered"
+      ]
+    },
+    {
+      "key": "kh40.tonemap-raycast@0.0.0-source",
+      "id": "kh40.tonemap-raycast",
+      "version": "0.0.0-source",
+      "name": "ToneMap raycast source",
+      "author": "KH40",
+      "category": "post processing",
+      "status": "DISCOVERED",
+      "runnable": false,
+      "bundled": false,
+      "search": [
+        "kh40.tonemap-raycast",
+        "tonemap",
+        "raycast",
+        "source",
+        "kh40",
+        "post",
+        "processing",
+        "discovered"
+      ]
+    },
+    {
+      "key": "kh40.working-floor-blur@0.0.0-source",
+      "id": "kh40.working-floor-blur",
+      "version": "0.0.0-source",
+      "name": "WorkingFloor2 Blur source",
+      "author": "KH40",
+      "category": "weather fx",
+      "status": "DISCOVERED",
+      "runnable": false,
+      "bundled": false,
+      "search": [
+        "kh40.working-floor-blur",
+        "workingfloor2",
+        "blur",
+        "source",
+        "kh40",
+        "weather",
+        "fx",
+        "discovered"
+      ]
+    }
+  ]
+}

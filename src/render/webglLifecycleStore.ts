@@ -101,14 +101,17 @@ export function handleWebGlContextLost(event: Event, renderer: THREE.WebGLRender
     '[WebGL] Context lost — suspending renderer, freeing GPU memory, reinitializing in 1s…'
   );
 
+  // Mark lost BEFORE dispose so PostFX subscribers unmount EffectComposer
+  // before postprocessing reads getContextAttributes().alpha on a dead context.
   markWebGlContextLost();
   beginGpuRecoveryLoadGate();
   contextLostListener?.();
+  // Suspend React canvas immediately (notify) before tearing down GL objects.
+  initGraphicsSystem();
   renderer.setAnimationLoop(null);
   tearDownWebGlPipeline(renderer);
 
   recoverHandler?.();
-  initGraphicsSystem();
 }
 
 /** Attach context guard on canvas — idempotent per canvas element. */

@@ -1,16 +1,31 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Clapperboard, Camera as CameraIcon, User, Sparkles, ChevronDown, Zap, Music2 } from 'lucide-react';
-import type { TemplateApplyMode } from '../types';
+import type { TemplateApplyMode, TemplateApplyOptions } from '../types';
 import {
   ANIMATION_TEMPLATES,
   TEMPLATE_CATEGORY_LABELS,
   DANCE_PICKER_CATEGORIES,
+  templateHasCamera,
   type AnimationTemplateCategory,
 } from '../templates/animationTemplates';
 
+const CAMERA_PREF_KEY = 'as_template_use_camera';
+
+function loadUseTemplateCameraPref(): boolean {
+  try {
+    return localStorage.getItem(CAMERA_PREF_KEY) === 'template';
+  } catch {
+    return false;
+  }
+}
+
 interface TemplatePickerProps {
-  onApplyTemplate: (templateId: string, mode?: TemplateApplyMode) => void;
+  onApplyTemplate: (
+    templateId: string,
+    mode?: TemplateApplyMode,
+    options?: TemplateApplyOptions
+  ) => void;
   hasModel: boolean;
   hasVmdActive?: boolean;
   compact?: boolean;
@@ -71,6 +86,7 @@ export default function TemplatePicker({
   const [openBelow, setOpenBelow] = useState(true);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [category, setCategory] = useState<AnimationTemplateCategory>(visibleCategories[0]);
+  const [useTemplateCamera, setUseTemplateCamera] = useState(loadUseTemplateCameraPref);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonLabel = label ?? (isDanceHub ? 'Dance' : 'Templates');
@@ -143,9 +159,13 @@ export default function TemplatePicker({
 
   const handleSelect = (templateId: string, needsModel: boolean) => {
     if (needsModel && !hasModel) return;
-    onApplyTemplate(templateId, applyMode);
+    onApplyTemplate(templateId, applyMode, {
+      useTemplateCamera: templateHasCamera(templateId) ? useTemplateCamera : false,
+    });
     setOpen(false);
   };
+
+  const categoryHasCameraTemplates = templates.some((t) => templateHasCamera(t.id));
 
   const accentClass = isDanceHub
     ? 'text-teal-200 bg-teal-950/40 border-teal-500/40 hover:bg-teal-950/60'
@@ -234,7 +254,31 @@ export default function TemplatePicker({
         })}
       </div>
 
-      <div className="px-3 py-2 border-t border-zinc-800 text-[8px] text-zinc-500 space-y-1">
+      <div className="px-3 py-2 border-t border-zinc-800 text-[8px] text-zinc-500 space-y-1.5">
+        {categoryHasCameraTemplates ? (
+          <button
+            type="button"
+            onClick={() => {
+              setUseTemplateCamera((v) => {
+                const next = !v;
+                try {
+                  localStorage.setItem(CAMERA_PREF_KEY, next ? 'template' : 'manual');
+                } catch {
+                  /* ignore */
+                }
+                return next;
+              });
+            }}
+            className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded border cursor-pointer text-[9px] font-bold ${
+              useTemplateCamera
+                ? 'border-[#e879ff]/30 text-[#e879ff] bg-[#e879ff]/5'
+                : 'border-amber-500/30 text-amber-300 bg-amber-950/20'
+            }`}
+          >
+            <span>{useTemplateCamera ? 'Template camera' : 'My camera (manual fly)'}</span>
+            <span className="opacity-70">{useTemplateCamera ? 'auto path' : 'motion only'}</span>
+          </button>
+        ) : null}
         {applyMode === 'merge'
           ? 'Add layer: stacks with existing body / camera keys'
           : 'Replace: overwrites keys from this template only'}

@@ -12,6 +12,7 @@ import {
   normalizeBlobFetchUrl,
   resolveAssetUrl,
 } from '../utils/mmdFiles';
+import { fetchVmdArrayBuffer } from '../utils/vmdBlobCache';
 import {
   evaluateTimelineAtFrame,
   evaluateTimelineWithLayers,
@@ -24,14 +25,30 @@ import {
   collectDynamicBoneNames,
 } from '../pose/poseApply';
 import type { PoseSnapshotV1 } from '../pose/poseTypes';
-import type { CharacterQuality, MmdLiteConfig, TimelineKeyframe, ViewportFormat } from '../types';
+import type {
+  AutoLuminousLevel,
+  CharacterQuality,
+  MmdLiteConfig,
+  RenderMode,
+  TimelineKeyframe,
+  ViewportFormat,
+} from '../types';
+import { isMmdFidelityMode } from '../utils/mmdFidelityMaterials';
+import { isAnimeNprMode } from '../utils/animeNprMode';
+import { registerAnimeNprModel, unregisterAnimeNprModel } from '../render/animeNpr/animeNprRuntime';
 import {
   applyModelOpacity,
   freezeTwistBones,
   installMeshAnimation,
+  resetMeshBindPose,
+  scrubMmdHelperToTime,
   syncMmdLitePhysicsConfig,
 } from '../utils/mmdMotionLite';
-import { restartMeshPhysics } from '../utils/mmdPhysicsLifecycle';
+import { restartMeshPhysics, safeRemoveMeshFromHelper } from '../utils/mmdPhysicsLifecycle';
+import {
+  evaluatePhysicsEligibility,
+  isAmmoOomError,
+} from '../physics/physicsEligibility';
 import {
   registerPhysicsModel,
   unregisterPhysicsModel,
@@ -42,12 +59,15 @@ import {
   applyDuplicateCollisionIsolation,
   applyStabilitySafetyLayer,
   setModelPhysicsHidden,
+  sleepSoftBodiesWhenIdle,
 } from '../physics/physicsStabilitySystem';
+import { applyAutoLuminous } from '../stylePacks/gallery/autoLuminous';
+import { applyMaterialVisibility } from '../stylePacks/gallery/materialVisibility';
 import { enhanceMmdMaterials } from '../utils/enhanceMmdMaterials';
 import { applyCharacterMaterialQuality } from '../utils/applyCharacterMaterialQuality';
-import { frameToTime, seekAnimationMixer } from '../utils/animationSync';
+import { frameToTime } from '../utils/animationSync';
 import { playheadRef, MMD_FPS, setPlayheadFrame } from '../utils/playhead';
-import { isRecordingCapture } from '../video/recordingCapture';
+import { isRecordingCapture, isInteractiveRecordingCapture } from '../video/recordingCapture';
 import {
   extractPmxBones,
   extractPmxMaterials,
@@ -68,16 +88,35 @@ import {
   getPhysicsAddParams,
   isAmmoPhysicsBroken,
   markAmmoPhysicsBroken,
+  repairStretchedPhysicsBones,
+  syncAllPhysicsBodiesFromBones,
+  updateMmdPoseSolvers,
 } from '../utils/mmdCharacterPhysics';
+import {
+  completeApisPhysicsSetup,
+  apisSelfHealCheck,
+  apisRuntimeCostPass,
+  recordApisPhysicsFrame,
+} from '../apis';
 import {
   captureOriginalMaterialOpacity,
   sanitizeMeshMorphAttributes,
 } from '../utils/mmdModelDetailing';
 import { applyMaterialDetailingAndSmoothing } from '../utils/mmdMaterialDetailing';
+import { applyBoxReflectionsToObject } from '../reflections/materialPatch';
+import { applyAsrpToObject, DEFAULT_ASRP } from '../asrp';
 import { registerCharacterRoot } from '../scene/characterHeadRegistry';
 import { registerScenePhysics } from '../scene/scenePhysicsRegistry';
 import { applyModelRenderPerfPolicy } from '../utils/modelRenderPerfPolicy';
 import { runSafeMeshLoadOptimizationsAsync } from '../render/meshLoadOptimizations';
+import {
+  buildMotionCompatibilityMap,
+  buildUmceAnimationClip,
+  extractUmceContextFromMesh,
+  extractVmdBoneNames,
+  parseVmdBuffer,
+  runUniversalScanner,
+} from '../umce';
 
 if (typeof window !== 'undefined') {
   (window as Window & { MMDParser?: unknown }).MMDParser =
@@ -208,6 +247,7 @@ interface ModelTransformGizmosProps {
   rootGizmoDraggingRef?: React.MutableRefObject<boolean>;
   gizmoDraggingRef?: React.MutableRefObject<boolean>;
   onModelMove?: (x: number, y: number, z: number) => void;
+  onModelRotate?: (x: number, y: number, z: number) => void;
   onBoneTransform?: (boneId: string, update: BoneTransformUpdate) => void;
   syncPhysicsFromRoot: () => void;
   syncSkeleton: () => void;
@@ -222,6 +262,7 @@ function ModelTransformGizmos({
   rootGizmoDraggingRef,
   gizmoDraggingRef,
   onModelMove,
+  onModelRotate,
   onBoneTransform,
   syncPhysicsFromRoot,
   syncSkeleton,
@@ -235,7 +276,7 @@ function ModelTransformGizmos({
     return (
       <SafeTransformControls
         object={rootNode}
-        mode="translate"
+        mode={transformMode}
         space="world"
         size={1.1}
         onDragStart={() => {
@@ -247,7 +288,15 @@ function ModelTransformGizmos({
         onObjectChange={() => {
           if (!rootNode) return;
           syncPhysicsFromRoot();
-          onModelMove?.(rootNode.position.x, rootNode.position.y, rootNode.position.z);
+          if (transformMode === 'translate') {
+            onModelMove?.(rootNode.position.x, rootNode.position.y, rootNode.position.z);
+          } else {
+            onModelRotate?.(
+              THREE.MathUtils.radToDeg(rootNode.rotation.x),
+              THREE.MathUtils.radToDeg(rootNode.rotation.y),
+              THREE.MathUtils.radToDeg(rootNode.rotation.z)
+            );
+          }
         }}
       />
     );
@@ -567,6 +616,12 @@ interface ModelPosition {
   z: number;
 }
 
+interface ModelRotation {
+  x: number;
+  y: number;
+  z: number;
+}
+
 interface RootMarkerVisualProps {
   onSelectRoot?: () => void;
 }
@@ -619,6 +674,7 @@ interface MMDModelWrapperProps {
   selectedBone: string;
   boneRotation: BoneRotationValues;
   modelPosition: ModelPosition;
+  modelRotation?: ModelRotation;
   customManager?: THREE.LoadingManager;
   fileMap?: Record<string, string>;
   vmdBlobUrls?: string[];
@@ -651,6 +707,7 @@ interface MMDModelWrapperProps {
   onSelectRoot?: () => void;
   onBoneTransform?: (boneId: string, update: BoneTransformUpdate) => void;
   onModelMove?: (x: number, y: number, z: number) => void;
+  onModelRotate?: (x: number, y: number, z: number) => void;
   showBonePickers?: boolean;
   onAnimationLoaded?: (frameCount: number, fileNames: string[]) => void;
   characterQuality?: CharacterQuality;
@@ -658,10 +715,19 @@ interface MMDModelWrapperProps {
   mmdLite?: MmdLiteConfig;
   materialDetailing?: boolean;
   materialSmoothing?: number;
+  autoLuminousLevel?: AutoLuminousLevel;
+  hiddenMaterialNames?: string[];
+  soloMaterialName?: string | null;
+  renderMode?: RenderMode;
   /** Hide root marker / gizmos for clean video capture. */
   hideStagingChrome?: boolean;
   /** Pose library hold — applied when paused (before physics). */
   poseHold?: PoseSnapshotV1 | null;
+  /** UMCE VMD bone remap table (motion bone → model bone). */
+  vmdBoneRemap?: Record<string, string>;
+  /** APIS generated physics profile (from import analysis). */
+  apisProfile?: import('../apis').ApisPhysicsProfile | null;
+  onApisReportUpdate?: (patch: Partial<import('../apis').ApisReport>) => void;
 }
 
 function applyCharacterMaterialPipeline(
@@ -670,20 +736,54 @@ function applyCharacterMaterialPipeline(
   renderer?: THREE.WebGLRenderer,
   viewportFormat: ViewportFormat = '16:9',
   materialDetailing = true,
-  materialSmoothing = 0.55
+  materialSmoothing = 0.55,
+  autoLuminousLevel: AutoLuminousLevel = 'auto',
+  hiddenMaterialNames: string[] = [],
+  soloMaterialName: string | null = null,
+  renderMode: RenderMode = 'pbr_cinematic'
 ) {
+  const animeNpr = isAnimeNprMode(renderMode);
+  const fidelity = isMmdFidelityMode(renderMode);
   fixMMDMaterials(root);
-  enhanceMmdMaterials(root, quality, viewportFormat);
+  if (animeNpr) {
+    applyMaterialVisibility(root, hiddenMaterialNames, soloMaterialName);
+    return;
+  }
+  enhanceMmdMaterials(
+    root,
+    quality,
+    viewportFormat,
+    materialDetailing,
+    renderMode,
+    autoLuminousLevel
+  );
   applyCharacterMaterialQuality(root, quality, renderer, viewportFormat);
-  if (materialDetailing) {
+  if (materialDetailing && !fidelity) {
     applyMaterialDetailingAndSmoothing(root, {
       smoothing: materialSmoothing,
       viewportFormat,
     });
   }
+  if (!fidelity) {
+    applyAutoLuminous(root, autoLuminousLevel);
+  }
+  applyMaterialVisibility(root, hiddenMaterialNames, soloMaterialName);
+  if (!fidelity) {
+    applyBoxReflectionsToObject(root, {
+      character: true,
+      environment: true,
+      animeFriendly: true,
+    });
+    // ASRP Silhouette POM — skipped for Classic (mmd_fidelity) via `!fidelity` guard above
+    applyAsrpToObject(root, {
+      ...DEFAULT_ASRP,
+      pipeline: 'asrp',
+      enabled: true,
+    });
+  }
 }
 
-export default function MMDModelWrapper({
+function MMDModelWrapper({
   sceneModelId,
   modelVisible = true,
   contentFingerprint = '',
@@ -697,6 +797,7 @@ export default function MMDModelWrapper({
   selectedBone,
   boneRotation,
   modelPosition,
+  modelRotation = { x: 0, y: 0, z: 0 },
   customManager,
   fileMap,
   vmdBlobUrls,
@@ -721,6 +822,7 @@ export default function MMDModelWrapper({
   onSelectRoot,
   onBoneTransform,
   onModelMove,
+  onModelRotate,
   showBonePickers = false,
   onAnimationLoaded,
   characterQuality = 'hd',
@@ -728,10 +830,73 @@ export default function MMDModelWrapper({
   mmdLite,
   materialDetailing = true,
   materialSmoothing = 0.55,
+  autoLuminousLevel = 'auto',
+  hiddenMaterialNames = [],
+  soloMaterialName = null,
+  renderMode = 'pbr_cinematic',
   hideStagingChrome = false,
   poseHold = null,
+  vmdBoneRemap,
+  apisProfile = null,
+  onApisReportUpdate,
 }: MMDModelWrapperProps) {
+  function mergeVmdMotions(vmds: import('../umce/types').VmdMotionData[]) {
+    const base = { ...vmds[0]!, motions: [...(vmds[0]!.motions ?? [])] };
+    for (let i = 1; i < vmds.length; i++) {
+      base.motions.push(...(vmds[i]?.motions ?? []));
+    }
+    return base;
+  }
+
+  const vmdBoneRemapRef = useRef(vmdBoneRemap);
+  vmdBoneRemapRef.current = vmdBoneRemap;
+
+  const loadVmdOntoMesh = useCallback(
+    (
+      loader: MMDLoader,
+      vmdFetchUrls: string[],
+      mmdMesh: THREE.SkinnedMesh,
+      onClip: (clip: THREE.AnimationClip) => void,
+      onErr?: (err: unknown) => void
+    ) => {
+      const primaryUrl = vmdFetchUrls[0];
+      if (!primaryUrl) {
+        onErr?.(new Error('No VMD URL'));
+        return;
+      }
+
+      void (async () => {
+        try {
+          const buffers = await Promise.all(
+            vmdFetchUrls.map((u) => {
+              const fetchUrl = normalizeBlobFetchUrl(u);
+              return fetchVmdArrayBuffer(fetchUrl);
+            })
+          );
+          const vmds = await Promise.all(buffers.map((b) => parseVmdBuffer(b)));
+          const vmd = vmds.length === 1 ? vmds[0]! : mergeVmdMotions(vmds);
+
+          const ctx = extractUmceContextFromMesh(mmdMesh);
+          const { canonicalMap, bones } = runUniversalScanner(ctx, mmdMesh);
+          const vmdNames = extractVmdBoneNames(vmd);
+          const motion = buildMotionCompatibilityMap(vmdNames, bones, canonicalMap);
+
+          const remap = { ...motion.remapTable, ...vmdBoneRemapRef.current };
+          // Always build from cached buffers — never re-fetch blob: URLs via
+          // MMDLoader.loadAnimation (9:16 remounts revoke / break those fetches).
+          const clip = buildUmceAnimationClip(loader, vmd, mmdMesh, remap);
+          onClip(clip);
+        } catch (err) {
+          console.error('[MMD] VMD load error:', err);
+          onErr?.(err);
+        }
+      })();
+    },
+    []
+  );
+
   const { gl } = useThree();
+  const invalidate = useThree((s) => s.invalidate);
   const [mesh, setMesh] = useState<THREE.SkinnedMesh | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -749,6 +914,7 @@ export default function MMDModelWrapper({
   const proceduralApiRef = useRef<MMDModelApi | null>(null);
   const prevRootPositionRef = useRef(new THREE.Vector3());
   const modelPositionRef = useRef(modelPosition);
+  const modelRotationRef = useRef(modelRotation);
   const collisionGroupBitRef = useRef<number | null>(null);
   const modelVisibleRef = useRef(modelVisible);
 
@@ -770,6 +936,7 @@ export default function MMDModelWrapper({
   const viewportFormatRef = useRef(viewportFormat);
   const activeVmdIndexRef = useRef(activeVmdIndex);
   const prevVmdIndexRef = useRef(activeVmdIndex);
+  const lastInstalledVmdKeyRef = useRef<string | null>(null);
   const mmdLiteRef = useRef(mmdLite);
   const initialVmdAppliedRef = useRef(false);
   const wasPlayingRef = useRef(false);
@@ -865,15 +1032,40 @@ export default function MMDModelWrapper({
   useEffect(() => {
     const m = meshRef.current;
     if (!m) return;
+    if (isAnimeNprMode(renderMode)) {
+      registerAnimeNprModel(m);
+      return () => unregisterAnimeNprModel(m);
+    }
+    unregisterAnimeNprModel(m);
+    return undefined;
+  }, [renderMode]);
+
+  useEffect(() => {
+    const m = meshRef.current;
+    if (!m) return;
     applyCharacterMaterialPipeline(
       m,
       characterQuality,
       gl,
       viewportFormat,
       materialDetailing,
-      materialSmoothing
+      materialSmoothing,
+      autoLuminousLevel,
+      hiddenMaterialNames,
+      soloMaterialName,
+      renderMode
     );
-  }, [characterQuality, viewportFormat, gl, materialDetailing, materialSmoothing]);
+  }, [
+    characterQuality,
+    viewportFormat,
+    gl,
+    materialDetailing,
+    materialSmoothing,
+    autoLuminousLevel,
+    hiddenMaterialNames,
+    soloMaterialName,
+    renderMode,
+  ]);
 
   // useFrame runs before effects — mirror critical props every render.
   isPlayingRef.current = isPlaying;
@@ -913,7 +1105,8 @@ export default function MMDModelWrapper({
 
   useEffect(() => {
     modelPositionRef.current = modelPosition;
-  }, [modelPosition]);
+    modelRotationRef.current = modelRotation;
+  }, [modelPosition, modelRotation]);
 
   // Apply template pose as soon as keyframes land (before / without waiting for useFrame).
   useEffect(() => {
@@ -953,9 +1146,14 @@ export default function MMDModelWrapper({
     const root = rootGroupRef.current;
     if (!root || rootGizmoDraggingRef?.current) return;
     root.position.set(modelPosition.x, modelPosition.y, modelPosition.z);
+    root.rotation.set(
+      THREE.MathUtils.degToRad(modelRotation.x),
+      THREE.MathUtils.degToRad(modelRotation.y),
+      THREE.MathUtils.degToRad(modelRotation.z)
+    );
     prevRootPositionRef.current.copy(root.position);
     syncPhysicsFromRoot();
-  }, [modelPosition, rootGizmoDraggingRef, syncPhysicsFromRoot]);
+  }, [modelPosition, modelRotation, rootGizmoDraggingRef, syncPhysicsFromRoot]);
 
   const assignRootGroup = useCallback((node: THREE.Group | null) => {
     rootGroupRef.current = node;
@@ -989,6 +1187,7 @@ export default function MMDModelWrapper({
         rootGizmoDraggingRef={rootGizmoDraggingRef}
         gizmoDraggingRef={gizmoDraggingRef}
         onModelMove={onModelMove}
+        onModelRotate={onModelRotate}
         onBoneTransform={onBoneTransform}
         syncPhysicsFromRoot={syncPhysicsFromRoot}
         syncSkeleton={() => {
@@ -1016,28 +1215,44 @@ export default function MMDModelWrapper({
         const mesh = meshRef.current;
         const helper = helperRef.current;
         if (!mesh || !helper) return;
-        const state = getHelperMeshState(helper, mesh);
-        let animTime: number | null = null;
-        const mixer = state?.mixer;
-        if (mixer) {
-          const acts = (mixer as THREE.AnimationMixer & { _actions?: THREE.AnimationAction[] })
-            ._actions;
-          if (acts?.[0]) animTime = acts[0].time;
+        try {
+          const state = getHelperMeshState(helper, mesh);
+          let animTime: number | null = null;
+          const mixer = state?.mixer;
+          if (mixer) {
+            const acts = (mixer as THREE.AnimationMixer & { _actions?: THREE.AnimationAction[] })
+              ._actions;
+            if (acts?.[0]) animTime = acts[0].time;
+          }
+          const clip = (state as { activeClip?: THREE.AnimationClip } | undefined)?.activeClip;
+          const physOn =
+            isAmmoInitialized() &&
+            !isAmmoPhysicsBroken() &&
+            physicsModeRef.current !== 'off';
+          restartMeshPhysics({
+            helper,
+            mesh,
+            clip: clip ?? undefined,
+            physicsEnabled: physOn,
+            wasPlaying: isPlayingRef.current,
+            animTime,
+          });
+          if (mmdLiteRef.current) syncMmdLitePhysicsConfig(mmdLiteRef.current);
+        } catch (err) {
+          console.warn('[MMD] restartPhysics failed:', err);
+          try {
+            window.dispatchEvent(
+              new CustomEvent('animastage:toast', {
+                detail: {
+                  message: 'Physics restart failed — try Reload model or disable physics.',
+                  durationMs: 5000,
+                },
+              })
+            );
+          } catch {
+            /* ignore */
+          }
         }
-        const clip = (state as { activeClip?: THREE.AnimationClip } | undefined)?.activeClip;
-        const physOn =
-          isAmmoInitialized() &&
-          !isAmmoPhysicsBroken() &&
-          physicsModeRef.current !== 'off';
-        restartMeshPhysics({
-          helper,
-          mesh,
-          clip: clip ?? undefined,
-          physicsEnabled: physOn,
-          wasPlaying: isPlayingRef.current,
-          animTime,
-        });
-        if (mmdLiteRef.current) syncMmdLitePhysicsConfig(mmdLiteRef.current);
       },
       setMaterialHighlight: (materialName: string | null) => {
         const root = meshRef.current;
@@ -1065,6 +1280,33 @@ export default function MMDModelWrapper({
   const onPmxMetadataRef = useRef(onPmxMetadata);
   onPmxMetadataRef.current = onPmxMetadata;
   const pmxMetadataMeshIdRef = useRef<string | null>(null);
+  const apisProfileRef = useRef(apisProfile);
+  apisProfileRef.current = apisProfile;
+  const onApisReportUpdateRef = useRef(onApisReportUpdate);
+  onApisReportUpdateRef.current = onApisReportUpdate;
+  const apisSetupDoneRef = useRef(false);
+  const apisHealFrameRef = useRef(0);
+
+  const tryCompleteApisSetup = useCallback(() => {
+    const profile = apisProfileRef.current;
+    const mmdMesh = meshRef.current;
+    const helper = helperRef.current;
+    if (!profile || !mmdMesh || !helper || apisSetupDoneRef.current) return;
+    const physics = getHelperMeshState(helper, mmdMesh)?.physics;
+    if (!physics) return;
+    apisSetupDoneRef.current = true;
+    void completeApisPhysicsSetup(sceneModelId, mmdMesh, helper, profile, (patch) => {
+      onApisReportUpdateRef.current?.(patch);
+    });
+  }, [sceneModelId]);
+
+  useEffect(() => {
+    apisSetupDoneRef.current = false;
+  }, [sceneModelId, apisProfile?.modelHash]);
+
+  useEffect(() => {
+    tryCompleteApisSetup();
+  }, [apisProfile, animationReady, tryCompleteApisSetup]);
 
   useEffect(() => {
     modelVisibleRef.current = modelVisible;
@@ -1250,7 +1492,11 @@ export default function MMDModelWrapper({
             gl,
             viewportFormatRef.current,
             materialDetailing,
-            materialSmoothing
+            materialSmoothing,
+            autoLuminousLevel,
+            hiddenMaterialNames,
+            soloMaterialName,
+            renderMode
           );
         }
       };
@@ -1267,24 +1513,21 @@ export default function MMDModelWrapper({
         bindRigidBodiesToSkeleton(mmdMesh);
         configureAnimationHelper(helperRef.current, mmdMesh);
 
-        const physicsEnabled =
+        const eligibility = evaluatePhysicsEligibility(mmdMesh);
+        const physicsWanted =
           isAmmoInitialized() &&
           !isAmmoPhysicsBroken() &&
-          physicsModeRef.current !== 'off';
+          physicsModeRef.current !== 'off' &&
+          physicsSimulationRef.current &&
+          eligibility.allowed;
 
-        const addParams = getPhysicsAddParams(physicsEnabled, undefined, {
-          animation,
-        }) as unknown as Parameters<MMDAnimationHelper['add']>[1];
+        if (!eligibility.allowed && physicsModeRef.current !== 'off') {
+          console.info(
+            `[MMD] Physics skipped (${eligibility.reason}, ${eligibility.rigidBodyCount} bodies) — animation/IK only`
+          );
+        }
 
         try {
-          helperRef.current.add(mmdMesh, addParams);
-          meshAttachedToHelper = true;
-        } catch (err) {
-          const msg = String((err as Error)?.message || err);
-          if (/out of memory|\bOOM\b|WebAssembly|wasm|unreachable|RuntimeError/i.test(msg)) {
-            markAmmoPhysicsBroken(err);
-          }
-          console.warn('[MMD] helper.add failed, retrying without physics:', err);
           helperRef.current.add(
             mmdMesh,
             getPhysicsAddParams(false, undefined, { animation }) as unknown as Parameters<
@@ -1292,23 +1535,54 @@ export default function MMDModelWrapper({
             >[1]
           );
           meshAttachedToHelper = true;
+        } catch (err) {
+          if (isAmmoOomError(err)) markAmmoPhysicsBroken(err);
+          console.warn('[MMD] helper.add failed:', err);
+          return;
         }
 
         applyIkFixOnly(mmdMesh, helperRef.current);
 
         if (animation) {
-          helperRef.current.enable('animation', true);
+          // Stay on bind pose until Play — do not leave mixer driving frame-0 dance pose.
+          helperRef.current.enable('animation', false);
         }
 
         helperRef.current.enable('ik', true);
         helperRef.current.enable('grant', true);
-        helperRef.current.enable('physics', physicsEnabled && meshAttachedToHelper);
+        helperRef.current.enable('physics', false);
+
+        let physicsLive = false;
+        if (physicsWanted) {
+          try {
+            restartMeshPhysics({
+              helper: helperRef.current,
+              mesh: mmdMesh,
+              clip: animation ?? null,
+              physicsEnabled: true,
+            });
+            physicsLive = Boolean(getHelperMeshState(helperRef.current, mmdMesh)?.physics);
+          } catch (err) {
+            if (isAmmoOomError(err)) markAmmoPhysicsBroken(err);
+            console.warn('[MMD] Physics bootstrap OOM — continuing without simulation:', err);
+            helperRef.current.enable('physics', false);
+          }
+        }
+
+        helperRef.current.enable(
+          'physics',
+          physicsLive &&
+            (physicsModeRef.current === 'anytime' ||
+              (physicsModeRef.current === 'playtime' && isPlayingRef.current))
+        );
 
         const meshState = getHelperMeshState(helperRef.current, mmdMesh);
         if (meshState?.physics) {
           applyPhysicsLiveSettings(meshState.physics);
           configureArmPhysicsForAnimation(mmdMesh, helperRef.current);
+          syncAllPhysicsBodiesFromBones(mmdMesh, meshState.physics);
           meshState.physics.reset();
+          tryCompleteApisSetup();
         }
 
         syncSkeletonBeforePhysics(mmdMesh);
@@ -1335,12 +1609,19 @@ export default function MMDModelWrapper({
           gl,
           viewportFormatRef.current,
           materialDetailing,
-          materialSmoothing
+          materialSmoothing,
+          autoLuminousLevel,
+          hiddenMaterialNames,
+          soloMaterialName,
+          renderMode
         );
         alignMeshFeetToRoot(mmdMesh);
         snapshotMmdRestPose(mmdMesh);
         loadedMesh = mmdMesh;
         meshRef.current = mmdMesh;
+        if (isAnimeNprMode(renderMode)) {
+          registerAnimeNprModel(mmdMesh);
+        }
         setMesh(mmdMesh);
         setLoading(false);
         setUseProcedural(false);
@@ -1380,8 +1661,17 @@ export default function MMDModelWrapper({
             if (animation) {
               hasVmdRef.current = true;
               animationReadyRef.current = true;
-              helperRef.current?.enable('animation', true);
+              helperRef.current?.enable('animation', false);
               setAnimationReady(true);
+
+              const urlsAtLoad = vmdBlobUrlsRef.current;
+              if (urlsAtLoad?.length) {
+                const idx = Math.min(
+                  Math.max(0, activeVmdIndexRef.current),
+                  urlsAtLoad.length - 1
+                );
+                lastInstalledVmdKeyRef.current = `${idx}|${urlsAtLoad[idx] ?? ''}`;
+              }
 
               const frameCount = Math.max(1, Math.ceil(animation.duration * MMD_FPS));
               const notifyLoaded = () => onAnimationLoadedRef.current?.(frameCount, []);
@@ -1389,6 +1679,11 @@ export default function MMDModelWrapper({
               requestAnimationFrame(notifyLoaded);
             } else {
               hasVmdRef.current = false;
+              // Mesh is attached without a clip — still "ready", otherwise a VMD
+              // attached later can never install and template poses never apply.
+              animationReadyRef.current = true;
+              helperRef.current?.enable('animation', false);
+              setAnimationReady(true);
             }
           });
       };
@@ -1407,11 +1702,11 @@ export default function MMDModelWrapper({
             const vmdFetchUrls = vmdBlobUrls.map((u) =>
               fileMap ? resolveAssetUrl(u, fileMap) : normalizeBlobFetchUrl(u)
             );
-            loader.loadAnimation(
-              vmdFetchUrls as unknown as string,
+            loadVmdOntoMesh(
+              loader,
+              vmdFetchUrls,
               mmdMesh,
-              (animation) => finishAnimation(mmdMesh, animation as THREE.AnimationClip),
-              undefined,
+              (animation) => finishAnimation(mmdMesh, animation),
               (err) => {
                 console.error('[MMD] VMD load error:', err);
                 finishAnimation(mmdMesh);
@@ -1437,14 +1732,15 @@ export default function MMDModelWrapper({
       isCurrent = false;
       meshAttachedToHelper = false;
       initialVmdAppliedRef.current = false;
+      lastInstalledVmdKeyRef.current = null;
       loaderRef.current = null;
       if (physicsDebugRef.current && loadedMesh) {
         loadedMesh.remove(physicsDebugRef.current);
         physicsDebugRef.current = null;
       }
       if (loadedMesh && helperRef.current) {
-          helperRef.current.remove(loadedMesh);
-        }
+        safeRemoveMeshFromHelper(helperRef.current, loadedMesh);
+      }
       if (loadedMesh) {
         loadedMesh.geometry?.dispose();
         const mats = Array.isArray(loadedMesh.material)
@@ -1455,26 +1751,52 @@ export default function MMDModelWrapper({
       meshRef.current = null;
       onModelReady?.(null);
     };
-  }, [url, customManager, fileMap, vmdBlobUrls, onModelReady]);
+  }, [url, customManager, fileMap, onModelReady]);
+
+  const restoreBindPose = useCallback((mesh: THREE.SkinnedMesh) => {
+    const rest = mesh.userData.mmdRestPose as
+      | Record<string, [number, number, number]>
+      | undefined;
+    if (rest) {
+      for (const bone of mesh.skeleton.bones) {
+        const base = rest[bone.name];
+        if (base) bone.rotation.set(base[0], base[1], base[2]);
+      }
+      mesh.skeleton.update();
+    } else {
+      resetMeshBindPose(mesh);
+    }
+  }, []);
 
   useEffect(() => {
     if (!animationReady || !meshRef.current || !helperRef.current) return;
     wasPlayingRef.current = false;
     const helper = helperRef.current;
-    const meshState = getHelperMeshState(helper, meshRef.current);
-    const hasLayerKeys = (animLayersRef.current ?? []).some((l) => l.keyframes.length > 0);
-    const hasTimeline =
-      timelineKeyframesRef.current.length > 0 || hasLayerKeys;
+    const mesh = meshRef.current;
+    // VMD wins while enabled — timeline keys must not mute the motion clip.
     const useVmd =
       (vmdBlobUrlsRef.current?.length ?? 0) > 0 &&
       vmdPlaybackEnabledRef.current &&
-      !activeTemplateIdRef.current &&
-      !hasTimeline;
-    if (meshState?.mixer && useVmd) {
-      seekAnimationMixer(meshState.mixer, frameToTime(playheadRef.current, MMD_FPS));
+      !activeTemplateIdRef.current;
+    if (!useVmd) {
+      helper.enable('animation', false);
+      return;
     }
-    helper.enable('animation', useVmd);
-  }, [animationReady]);
+    // Demand frameloop: do not leave animation on while paused — restore T-pose at 0.
+    const playing = isPlayingRef.current;
+    const frame = playing ? playheadRef.current : currentFrameRef.current;
+    if (!playing && frame <= 0.05) {
+      helper.enable('animation', false);
+      restoreBindPose(mesh);
+    } else if (!playing) {
+      helper.enable('animation', true);
+      scrubMmdHelperToTime(helper, mesh, frameToTime(frame, MMD_FPS));
+      helper.enable('animation', false);
+    } else {
+      helper.enable('animation', true);
+      scrubMmdHelperToTime(helper, mesh, frameToTime(frame, MMD_FPS));
+    }
+  }, [animationReady, restoreBindPose]);
 
   // When a template is applied / removed, sync the helper animation flag immediately
   // so VMD and timeline never fight each other.
@@ -1483,26 +1805,64 @@ export default function MMDModelWrapper({
     const mesh = meshRef.current;
     if (!helper || !mesh || !animationReady) return;
 
-    const hasLayerKeys2 = (animLayersRef.current ?? []).some((l) => l.keyframes.length > 0);
-    const hasTimeline =
-      timelineKeyframesRef.current.length > 0 || hasLayerKeys2;
     const useVmd =
       (vmdBlobUrlsRef.current?.length ?? 0) > 0 &&
       vmdPlaybackEnabledRef.current &&
-      !activeTemplateId &&
-      !hasTimeline;
-
-    helper.enable('animation', useVmd);
+      !activeTemplateId;
 
     // If switching to timeline mode, also rewind mixer to frame 0 to prevent
     // VMD pose leaking into the first timeline frame.
     if (!useVmd) {
-      const meshState = getHelperMeshState(helper, mesh);
-      if (meshState?.mixer) {
-        seekAnimationMixer(meshState.mixer, 0);
+      helper.enable('animation', false);
+      scrubMmdHelperToTime(helper, mesh, 0);
+      restoreBindPose(mesh);
+      return;
+    }
+
+    const playing = isPlayingRef.current;
+    const frame = playing ? playheadRef.current : currentFrameRef.current;
+    if (!playing && frame <= 0.05) {
+      helper.enable('animation', false);
+      restoreBindPose(mesh);
+    } else {
+      helper.enable('animation', playing);
+      if (!playing) {
+        scrubMmdHelperToTime(helper, mesh, frameToTime(frame, MMD_FPS));
+        helper.enable('animation', false);
       }
     }
-  }, [activeTemplateId, animationReady, vmdPlaybackEnabled]);
+  }, [activeTemplateId, animationReady, vmdPlaybackEnabled, restoreBindPose]);
+
+  // STOP / scrub to 0 while paused: demand frameloop may not run useFrame — force T-pose.
+  useEffect(() => {
+    const helper = helperRef.current;
+    const mesh = meshRef.current;
+    if (!helper || !mesh || !animationReady) return;
+    const useVmd =
+      (vmdBlobUrls?.length ?? 0) > 0 &&
+      vmdPlaybackEnabled &&
+      !activeTemplateId;
+    if (!useVmd || isPlaying) return;
+    if (currentFrame > 0.05) {
+      helper.enable('animation', true);
+      scrubMmdHelperToTime(helper, mesh, frameToTime(currentFrame, MMD_FPS));
+      helper.enable('animation', false);
+      invalidate();
+      return;
+    }
+    helper.enable('animation', false);
+    restoreBindPose(mesh);
+    invalidate();
+  }, [
+    activeTemplateId,
+    animationReady,
+    currentFrame,
+    invalidate,
+    isPlaying,
+    restoreBindPose,
+    vmdBlobUrls,
+    vmdPlaybackEnabled,
+  ]);
 
   useEffect(() => {
     activeVmdIndexRef.current = activeVmdIndex;
@@ -1540,50 +1900,74 @@ export default function MMDModelWrapper({
     const urls = vmdBlobUrls;
     if (!mesh || !loader || !urls?.length || !animationReady) return;
 
-    if (!initialVmdAppliedRef.current) {
-      initialVmdAppliedRef.current = true;
-      prevVmdIndexRef.current = activeVmdIndex;
-      return;
-    }
+    const index = Math.min(Math.max(0, activeVmdIndex), urls.length - 1);
+    const activeUrl = urls[index] ?? '';
+    const activeKey = `${index}|${activeUrl}`;
 
-    if (prevVmdIndexRef.current === activeVmdIndex) return;
+    if (lastInstalledVmdKeyRef.current === activeKey) return;
+    lastInstalledVmdKeyRef.current = activeKey;
     prevVmdIndexRef.current = activeVmdIndex;
 
-    const index = Math.min(Math.max(0, activeVmdIndex), urls.length - 1);
     const vmdUrl = fileMap
-      ? resolveAssetUrl(urls[index]!, fileMap)
-      : normalizeBlobFetchUrl(urls[index]!);
+      ? resolveAssetUrl(activeUrl, fileMap)
+      : normalizeBlobFetchUrl(activeUrl);
 
     setAnimationReady(false);
     hasVmdRef.current = true;
 
-    loader.loadAnimation(
-      vmdUrl,
+    // Pause physics while the new clip is installed so bodies don't explode mid-swap.
+    const helperDuringLoad = helperRef.current;
+    if (helperDuringLoad) {
+      helperDuringLoad.enable('physics', false);
+    }
+
+    loadVmdOntoMesh(
+      loader,
+      [vmdUrl],
       mesh,
-      (animation) => {
+      (clip) => {
         const helper = helperRef.current;
         if (!helper || !meshRef.current) return;
 
-        const clip = animation as THREE.AnimationClip;
         if (mmdLiteRef.current) syncMmdLitePhysicsConfig(mmdLiteRef.current);
         const physOn =
           isAmmoInitialized() && !isAmmoPhysicsBroken() && physicsModeRef.current !== 'off';
-        installMeshAnimation(helper, mesh, clip, physOn);
+        installMeshAnimation(helper, mesh, clip, false);
         configureAnimationHelper(helper, mesh);
-        setAnimationReady(true);
-        animationReadyRef.current = true;
+        scrubMmdHelperToTime(helper, mesh, 0);
+        setPlayheadFrame(0);
+
+        const settlePhysics = () => {
+          if (!helperRef.current || !meshRef.current) return;
+          if (physOn) {
+            helperRef.current.enable('physics', true);
+            const meshState = getHelperMeshState(helperRef.current, meshRef.current);
+            try {
+              meshState?.physics?.reset?.();
+            } catch {
+              /* ignore */
+            }
+            if (meshState?.physics) {
+              applyPhysicsLiveSettings(meshState.physics);
+              configureArmPhysicsForAnimation(meshRef.current, helperRef.current);
+            }
+          }
+          setAnimationReady(true);
+          animationReadyRef.current = true;
+        };
+
+        // Two frames so skeleton + mixer pose settle before Bullet reset.
+        requestAnimationFrame(() => requestAnimationFrame(settlePhysics));
 
         const frameCount = Math.max(1, Math.ceil(clip.duration * MMD_FPS));
         onAnimationLoadedRef.current?.(frameCount, []);
-        setPlayheadFrame(0);
       },
-      undefined,
       (err) => {
         console.error('[MMD] VMD switch error:', err);
         setAnimationReady(true);
       }
     );
-  }, [activeVmdIndex, animationReady, fileMap, vmdBlobUrls]);
+  }, [activeVmdIndex, animationReady, fileMap, vmdBlobUrls, loadVmdOntoMesh]);
 
   useEffect(() => {
     if (!helperRef.current || !meshRef.current) return;
@@ -1667,25 +2051,32 @@ export default function MMDModelWrapper({
 
     helper.enable('physics', enablePhysics);
     helper.enable('ik', useVmdAnimation || !hasManualTimeline);
-    helper.enable('grant', useVmdAnimation || !hasManualTimeline);
+    helper.enable(
+      'grant',
+      useVmdAnimation || !hasManualTimeline || enablePhysics
+    );
 
     if (useVmdAnimation) {
-      helper.enable('animation', true);
-      const speedFactor = Math.max(0.001, playSpeedRef.current / MMD_FPS);
-      if (playing) {
-        if (!wasPlayingRef.current && meshState?.mixer) {
-          seekAnimationMixer(
-            meshState.mixer,
-            frameToTime(activeFrame, MMD_FPS)
-          );
-        }
-        helper.update(delta * speedFactor);
+      const atStartRest =
+        !playing && !capturing && activeFrame <= 0.05;
+      if (atStartRest) {
+        // STOP / idle at frame 0 → bind pose (T-pose), not VMD frame-0 dance pose.
+        helper.enable('animation', false);
+        restoreBindPose(currentMesh);
       } else {
+        helper.enable('animation', true);
+        const speedFactor = Math.max(0.001, playSpeedRef.current / MMD_FPS);
         const time = frameToTime(activeFrame, MMD_FPS);
-        if (meshState?.mixer) {
-          seekAnimationMixer(meshState.mixer, time);
+        // Offline MP4 / paused scrub: helper-safe absolute seek.
+        // Live (interactive) + Play: delta only — seek+update(0) freezes MMD pose.
+        const offlineOrPausedScrub =
+          (capturing && !isInteractiveRecordingCapture()) || (!playing && !capturing);
+        if (offlineOrPausedScrub) {
+          scrubMmdHelperToTime(helper, currentMesh, time);
+        } else {
+          helper.update(delta * speedFactor);
+          currentMesh.skeleton?.update();
         }
-        helper.update(0);
       }
     } else {
       helper.enable('animation', false);
@@ -1694,6 +2085,20 @@ export default function MMDModelWrapper({
     }
 
     const root = rootGroupRef.current;
+    if (root && capturing) {
+      // Hold authored stage position/rotation while encoding — gizmos unmount
+      // and camera systems must not leave the root at origin mid-render.
+      const pos = modelPositionRef.current;
+      root.position.set(pos.x, pos.y, pos.z);
+      const rot = modelRotationRef.current;
+      if (rot) {
+        root.rotation.set(
+          THREE.MathUtils.degToRad(rot.x),
+          THREE.MathUtils.degToRad(rot.y),
+          THREE.MathUtils.degToRad(rot.z)
+        );
+      }
+    }
     if (root && !prevRootPositionRef.current.equals(root.position)) {
       prevRootPositionRef.current.copy(root.position);
       syncSkeletonBeforePhysics(currentMesh);
@@ -1739,6 +2144,12 @@ export default function MMDModelWrapper({
         }
         currentMesh.skeleton.update();
       }
+      if (enablePhysics) {
+        updateMmdPoseSolvers(helper, currentMesh, {
+          ik: !hasManualTimeline,
+          grant: true,
+        });
+      }
     }
 
     // Pose first, then cloth sim (timeline or idle). VMD uses helper.update() above.
@@ -1746,12 +2157,47 @@ export default function MMDModelWrapper({
       const simCloth =
         playing || physicsModeRef.current === 'anytime';
       if (simCloth && !useVmdAnimation) {
+        updateMmdPoseSolvers(helper, currentMesh, {
+          ik: !hasManualTimeline,
+          grant: true,
+        });
         syncSkeletonBeforePhysics(currentMesh);
+        syncAllPhysicsBodiesFromBones(currentMesh, meshState.physics);
+        const physT0 = performance.now();
         meshState.physics.update(delta);
+        recordApisPhysicsFrame(sceneModelId, performance.now() - physT0);
+        repairStretchedPhysicsBones(currentMesh, meshState.physics);
         applyStabilitySafetyLayer(meshState.physics);
+        currentMesh.skeleton.update();
+        apisRuntimeCostPass(
+          sceneModelId,
+          currentMesh,
+          meshState.physics,
+          playing,
+          modelVisibleRef.current
+        );
+      } else if (!playing && !capturing && physicsModeRef.current === 'playtime') {
+        sleepSoftBodiesWhenIdle(meshState.physics);
       }
     } else if (enablePhysics && meshState?.physics && useVmdAnimation) {
       applyStabilitySafetyLayer(meshState.physics);
+    }
+
+    apisHealFrameRef.current++;
+    if (enablePhysics && meshState?.physics && apisHealFrameRef.current % 45 === 0) {
+      const reg = {
+        sceneModelId,
+        mesh: currentMesh,
+        helper,
+        visible: modelVisibleRef.current,
+        contentHash: contentFingerprint || sceneModelId,
+        collisionGroupBit: collisionGroupBitRef.current ?? 1,
+        getPhysics: () => meshState.physics,
+        syncSkeleton: () => syncSkeletonBeforePhysics(currentMesh),
+        restartPhysicsFull: () => buildMeshApi()?.restartPhysics(),
+        ensurePhysicsEnabled: () => helper.enable('physics', true),
+      };
+      apisSelfHealCheck(sceneModelId, currentMesh, meshState.physics, reg);
     }
 
     const isGizmoDragging = gizmoDraggingRef?.current ?? false;
@@ -1778,6 +2224,7 @@ export default function MMDModelWrapper({
         <group
           ref={assignRootGroup}
           position={[modelPosition.x, modelPosition.y, modelPosition.z]}
+          rotation={[THREE.MathUtils.degToRad(modelRotation.x), THREE.MathUtils.degToRad(modelRotation.y), THREE.MathUtils.degToRad(modelRotation.z)]}
         >
           {!hideStagingChrome && rootManipulatorActive && (
             <RootMarkerVisual onSelectRoot={onSelectRoot} />
@@ -1799,6 +2246,7 @@ export default function MMDModelWrapper({
           ref={assignRootGroup}
           visible={modelVisible}
           position={[modelPosition.x, modelPosition.y, modelPosition.z]}
+          rotation={[THREE.MathUtils.degToRad(modelRotation.x), THREE.MathUtils.degToRad(modelRotation.y), THREE.MathUtils.degToRad(modelRotation.z)]}
         >
           {!hideStagingChrome && rootManipulatorActive && modelVisible && (
             <RootMarkerVisual onSelectRoot={onSelectRoot} />
@@ -1822,6 +2270,7 @@ export default function MMDModelWrapper({
       <group
         ref={assignRootGroup}
         position={[modelPosition.x, modelPosition.y, modelPosition.z]}
+          rotation={[THREE.MathUtils.degToRad(modelRotation.x), THREE.MathUtils.degToRad(modelRotation.y), THREE.MathUtils.degToRad(modelRotation.z)]}
       >
         {!hideStagingChrome && rootManipulatorActive && (
           <RootMarkerVisual onSelectRoot={onSelectRoot} />
@@ -2201,3 +2650,5 @@ function ProceduralRig({
     </group>
   );
 }
+
+export default React.memo(MMDModelWrapper);

@@ -6,6 +6,8 @@ import AdvancedStudioPanel from '../editor/AdvancedStudioPanel';
 import BoneHierarchyPanel from '../editor/BoneHierarchyPanel';
 import MaterialsPanel from '../editor/MaterialsPanel';
 import ModelAnalyzerPanel from '../editor/ModelAnalyzerPanel';
+import ApisStatusPanel from '../apis/ApisStatusPanel';
+import CisStatusPanel from '../cis/CisStatusPanel';
 import { CollapsibleSection, Panel, Slider, Toggle } from '../UI';
 
 interface AdvancedSectionProps {
@@ -137,9 +139,21 @@ export default function AdvancedSection({
 
       {selectedModel ? (
         <CollapsibleSection title="Model details" defaultOpen={false}>
+          {selectedModel.cisReport ? (
+            <div className="mb-[var(--space-sm)]">
+              <CisStatusPanel report={selectedModel.cisReport} />
+            </div>
+          ) : selectedModel.apisReport ? (
+            <div className="mb-[var(--space-sm)]">
+              <ApisStatusPanel report={selectedModel.apisReport} />
+            </div>
+          ) : null}
           {!beginnerMode && onReanalyzeModel ? (
             <ModelAnalyzerPanel
               report={selectedModel.modelAnalysis}
+              umceReport={selectedModel.umceReport}
+              apisReport={selectedModel.apisReport}
+              cisProfile={selectedModel.cisReport?.profile}
               onReanalyze={onReanalyzeModel}
               analyzing={analyzingModel}
             />

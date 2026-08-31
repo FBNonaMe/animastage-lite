@@ -11,6 +11,10 @@ import {
 } from '../components/TimelineLogic';
 import type { BoneState, MorphState } from '../types';
 import { MMD_FPS } from '../utils/playhead';
+import {
+  encodeVmdBoneInterpolation,
+  linearVmdInterpolation,
+} from './vmdInterpolation';
 
 const BONE_EXPORT: Record<
   Exclude<TimelineTrackId, 'morph_eyes' | 'morph_mouth' | 'morph_brow'>,
@@ -48,7 +52,8 @@ function writeMotion(
   boneName: string,
   frameNum: number,
   position: [number, number, number],
-  rotation: [number, number, number, number]
+  rotation: [number, number, number, number],
+  interpolation?: Uint8Array
 ): number {
   const nameBytes = encodeSjis(boneName, 15);
   new Uint8Array(view.buffer, offset, 15).set(nameBytes);
@@ -64,9 +69,8 @@ function writeMotion(
   view.setFloat32(offset + 8, rotation[2], true);
   view.setFloat32(offset + 12, rotation[3], true);
   offset += 16;
-  for (let i = 0; i < 64; i++) {
-    view.setUint8(offset + i, 20);
-  }
+  const curve = interpolation ?? linearVmdInterpolation();
+  new Uint8Array(view.buffer, offset, 64).set(curve);
   return offset + 64;
 }
 
@@ -101,24 +105,60 @@ export interface VmdExportInput {
   bones: BoneState[];
   morphs: MorphState;
   clipName?: string;
+  /** Write MMD-native bezier interpolation bytes from timeline curve handles. */
+  nativeBezier?: boolean;
+}
+
+function boneInterpolationAtFrame(
+  keyframes: TimelineKeyframe[],
+  frame: number,
+  nativeBezier: boolean
+): Uint8Array {
+  if (!nativeBezier) return linearVmdInterpolation();
+  const atFrame = keyframes.filter((k) => k.frame === frame);
+  const bezier = atFrame.find((k) => k.interpolation === 'bezier');
+  if (!bezier) return linearVmdInterpolation();
+  return encodeVmdBoneInterpolation(
+    'bezier',
+    bezier.easeOut ?? 0.33,
+    bezier.easeIn ?? 0.33
+  );
+}
+
+function resolveExportFrames(keyframes: TimelineKeyframe[], maxFrames: number, nativeBezier: boolean): number[] {
+  const unique = new Set<number>();
+  for (const kf of keyframes) unique.add(kf.frame);
+  if (nativeBezier && unique.size > 0) {
+    return Array.from(unique).sort((a, b) => a - b);
+  }
+  if (unique.size === 0) {
+    for (let f = 0; f <= Math.min(maxFrames, 1); f++) unique.add(f);
+  } else {
+    const min = Math.min(...unique);
+    const max = Math.max(...unique);
+    for (let f = min; f <= max; f++) unique.add(f);
+  }
+  return Array.from(unique).sort((a, b) => a - b);
 }
 
 export function buildVmdFromTimeline(input: VmdExportInput): ArrayBuffer {
-  const { keyframes, maxFrames, bones, morphs, clipName = 'AnimaStage Lite' } = input;
+  const {
+    keyframes,
+    maxFrames,
+    bones,
+    morphs,
+    clipName = 'AnimaStage Lite',
+    nativeBezier = false,
+  } = input;
   const live = getDefaultLiveValues(bones, morphs);
-
-  const uniqueFrames = new Set<number>();
-  for (const kf of keyframes) uniqueFrames.add(kf.frame);
-  if (uniqueFrames.size === 0) {
-    for (let f = 0; f <= Math.min(maxFrames, 1); f++) uniqueFrames.add(f);
-  }
-  const frames = Array.from(uniqueFrames).sort((a, b) => a - b);
+  const frames = resolveExportFrames(keyframes, maxFrames, nativeBezier);
 
   const motions: Array<{
     boneName: string;
     frameNum: number;
     position: [number, number, number];
     rotation: [number, number, number, number];
+    interpolation: Uint8Array;
   }> = [];
 
   const morphsOut: Array<{ morphName: string; frameNum: number; weight: number }> = [];
@@ -143,6 +183,7 @@ export function buildVmdFromTimeline(input: VmdExportInput): ArrayBuffer {
         frameNum: frame,
         position: [0, 0, 0],
         rotation: q,
+        interpolation: boneInterpolationAtFrame(keyframes, frame, nativeBezier),
       });
     }
 
@@ -179,7 +220,7 @@ export function buildVmdFromTimeline(input: VmdExportInput): ArrayBuffer {
   view.setUint32(o, motions.length, true);
   o += 4;
   for (const m of motions) {
-    o = writeMotion(view, o, m.boneName, m.frameNum, m.position, m.rotation);
+    o = writeMotion(view, o, m.boneName, m.frameNum, m.position, m.rotation, m.interpolation);
   }
 
   view.setUint32(o, morphsOut.length, true);

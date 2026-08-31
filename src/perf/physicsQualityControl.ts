@@ -57,10 +57,19 @@ export function resolveEffectivePhysicsTier(): EffectivePhysicsTier {
 let templatePlaybackCap: number | null = null;
 let timelinePlaybackCap: number | null = null;
 let mobileRuntimeCap: number | null = null;
+/** Perf governor reducePhysics → cloth/hair substep cap (viewport only). */
+let governorPhysicsCap: number | null = null;
 
 /** Limits substeps on phones (SAFE mode). */
 export function setMobilePhysicsCap(maxSteps: number | null): void {
   mobileRuntimeCap = maxSteps;
+  refreshScenePhysicsSubstepCaps();
+}
+
+/** Soft cap from adaptive governor when reducePhysics is set. */
+export function setGovernorPhysicsCap(maxSteps: number | null): void {
+  if (governorPhysicsCap === maxSteps) return;
+  governorPhysicsCap = maxSteps;
   refreshScenePhysicsSubstepCaps();
 }
 
@@ -87,6 +96,9 @@ export function getEffectivePhysicsMaxSteps(): number {
   }
   if (mobileRuntimeCap !== null) {
     steps = Math.min(steps, mobileRuntimeCap);
+  }
+  if (governorPhysicsCap !== null) {
+    steps = Math.min(steps, governorPhysicsCap);
   }
   return steps;
 }

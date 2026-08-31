@@ -22,6 +22,9 @@ export function syncMmdLitePhysicsConfig(cfg: MmdLiteConfig): void {
   mmdPhysicsSettings.physicsGravity = cfg.physicsGravity;
   mmdPhysicsSettings.physicsSwing = cfg.physicsSwing;
   mmdPhysicsSettings.physicsWind = cfg.physicsWind;
+  if (typeof cfg.physicsWarmup === 'number' && Number.isFinite(cfg.physicsWarmup)) {
+    mmdPhysicsSettings.physicsWarmup = Math.max(0, Math.min(120, Math.round(cfg.physicsWarmup)));
+  }
 }
 
 export function clearAnimMixerState(
@@ -41,6 +44,71 @@ export function clearAnimMixerState(
   delete objects.sortedBonesData;
   objects.looped = false;
   objects.activeClip = null;
+}
+
+/**
+ * Seek MMDAnimationHelper to an absolute clip time.
+ *
+ * MMD helper keeps a bone backup around mixer updates. Calling mixer.setTime()
+ * (or seekAnimationMixer) and then helper.update(0) restores the PREVIOUS pose
+ * and freezes VMD — exactly what broke MP4 HQ / Live capture.
+ *
+ * Forward seeks use relative helper.update(delta). Backward / restart clears
+ * the backup and advances from t=0 in one step.
+ */
+export function scrubMmdHelperToTime(
+  helper: MMDAnimationHelper,
+  mesh: THREE.SkinnedMesh,
+  timeSec: number
+): void {
+  const objects = getAnimHelperObjects(helper, mesh) as
+    | {
+        mixer?: THREE.AnimationMixer;
+        backupBones?: unknown;
+      }
+    | undefined;
+  const mixer = objects?.mixer;
+  const target = Math.max(0, timeSec);
+
+  if (!mixer) {
+    helper.update(0);
+    mesh.skeleton?.update();
+    return;
+  }
+
+  const actions = (mixer as THREE.AnimationMixer & { _actions?: THREE.AnimationAction[] })
+    ._actions;
+  if (actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      if (!action) continue;
+      action.paused = false;
+      action.enabled = true;
+    }
+  }
+
+  const cur = mixer.time;
+  const eps = 1e-4;
+
+  if (target + eps >= cur) {
+    helper.update(Math.max(0, target - cur));
+    mesh.skeleton?.update();
+    return;
+  }
+
+  // Rewind: reset mixer clock without applying via setTime, drop bone backup,
+  // then advance once to the target (restore is a no-op without backupBones).
+  mixer.time = 0;
+  if (actions) {
+    for (let i = 0; i < actions.length; i++) {
+      const action = actions[i];
+      if (!action) continue;
+      action.time = 0;
+    }
+  }
+  if (objects) delete objects.backupBones;
+  helper.update(target);
+  mesh.skeleton?.update();
 }
 
 export function resetMeshBindPose(mesh: THREE.SkinnedMesh): void {
@@ -99,11 +167,35 @@ export function installMeshAnimation(
 ): void {
   if (replaceMeshAnimation(helper, mesh, clip)) {
     helper.enable('animation', true);
+    // Hot-swap clip on existing helper — reset soft bodies so hair/skirt don't explode.
+    const meshState = getAnimHelperObjects(helper, mesh);
+    const physics = meshState?.physics as MMDPhysics | undefined;
+    helper.enable('physics', false);
+    try {
+      physics?.reset?.();
+    } catch {
+      /* ignore */
+    }
+    if (physicsEnabled) {
+      helper.enable('physics', true);
+      try {
+        physics?.reset?.();
+      } catch {
+        /* ignore */
+      }
+      if (physics) {
+        applyPhysicsLiveSettings(physics);
+        configureArmPhysicsForAnimation(mesh, helper);
+      }
+    }
     return;
   }
 
   try {
-    helper.remove(mesh);
+    // Only remove when actually registered — bare remove() throws and can crash the studio shell.
+    if (helper.meshes.indexOf(mesh) >= 0) {
+      helper.remove(mesh);
+    }
   } catch {
     /* not registered */
   }
@@ -126,6 +218,11 @@ export function installMeshAnimation(
   helper.enable('ik', true);
   helper.enable('grant', true);
   helper.enable('physics', physicsEnabled);
+  try {
+    (meshState?.physics as MMDPhysics | undefined)?.reset?.();
+  } catch {
+    /* ignore */
+  }
 }
 
 export function applyModelOpacity(root: THREE.Object3D, alpha: number): void {

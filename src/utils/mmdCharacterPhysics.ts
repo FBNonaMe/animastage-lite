@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import type { MMDAnimationHelper, MMDPhysics } from 'three-stdlib';
+import { PHYSICS_RIGID_BODY_SOFT_CAP } from '../physics/physicsEligibility';
 
 export interface MmdPhysicsRigidBodyParams {
   name?: string;
@@ -83,6 +84,7 @@ type IkSolverLike = {
 type HelperMeshState = {
   physics?: MMDPhysics;
   ikSolver?: IkSolverLike;
+  grantSolver?: { update: () => void };
 };
 
 type HelperWithObjects = MMDAnimationHelper & {
@@ -105,7 +107,7 @@ export function resetAmmoPhysicsBroken(): void {
 }
 
 const OOM_PATTERN =
-  /out of memory|\bOOM\b|WebAssembly|wasm.*(fail|error|oom)|unreachable|RuntimeError/i;
+  /out of memory|\bOOM\b|Aborted\(|Aborted\b|WebAssembly|wasm.*(fail|error|oom)|unreachable|RuntimeError/i;
 
 /** Call once at app boot — disables physics after WASM OOM (mmd_rtx pattern). */
 export function installAmmoCrashGuard(): () => void {
@@ -147,14 +149,16 @@ function effectivePhysSub(s: MmdPhysicsSettings): number {
 export function getPhysicsAddParams(
   physicsEnabled: boolean,
   settings: MmdPhysicsSettings = mmdPhysicsSettings,
-  extra: Record<string, unknown> = {}
+  extra: Record<string, unknown> = {},
+  rigidBodyCount = 0
 ): Record<string, unknown> {
   const wantPhysics = physicsEnabled && !ammoPhysicsBroken;
+  const heavy = rigidBodyCount > PHYSICS_RIGID_BODY_SOFT_CAP;
   return {
     physics: wantPhysics,
-    warmup: wantPhysics ? settings.physicsWarmup : 0,
+    warmup: wantPhysics ? (heavy ? 20 : settings.physicsWarmup) : 0,
     unitStep: 1 / effectivePhysRate(settings),
-    maxStepNum: effectivePhysSub(settings),
+    maxStepNum: heavy ? 2 : effectivePhysSub(settings),
     gravity: new THREE.Vector3(0, -98 * settings.physicsGravity, 0),
     ...extra,
   };
@@ -327,6 +331,86 @@ export function syncArmLimbCollidersFromBones(
     if (!isMainArmLimbCollider(body, mesh)) continue;
     body.updateFromBone?.();
   }
+}
+
+/** Sync every rigid body to its bone — prevents hair/tail stretch after pose changes. */
+export function syncAllPhysicsBodiesFromBones(
+  mesh: THREE.SkinnedMesh,
+  physics: MMDPhysics | undefined
+): void {
+  if (!physics?.bodies?.length) return;
+
+  mesh.skeleton?.update();
+  mesh.updateMatrixWorld(true);
+
+  const bodies = physics.bodies as unknown as MmdPhysicsBodyWrapper[];
+  for (const body of bodies) {
+    body.updateFromBone?.();
+  }
+}
+
+/** Grant + IK solvers when VMD helper.update() is not driving the frame. */
+export function updateMmdPoseSolvers(
+  helper: MMDAnimationHelper,
+  mesh: THREE.SkinnedMesh,
+  options: { ik?: boolean; grant?: boolean } = {}
+): void {
+  const state = getAnimHelperObjects(helper, mesh);
+  const runGrant = options.grant !== false;
+  const runIk = options.ik !== false;
+  if (runGrant && state?.grantSolver) {
+    state.grantSolver.update();
+  }
+  if (runIk && state?.ikSolver) {
+    state.ikSolver.update();
+  }
+}
+
+const _stretchBoneA = new THREE.Vector3();
+const _stretchBoneB = new THREE.Vector3();
+
+/** Snap runaway physics bones when parent-child distance explodes (tail/hair stretch). */
+export function repairStretchedPhysicsBones(
+  mesh: THREE.SkinnedMesh,
+  physics: MMDPhysics | undefined,
+  maxParentDistance = 12
+): number {
+  if (!physics?.bodies?.length) return 0;
+
+  let repairs = 0;
+  const bodies = physics.bodies as unknown as MmdPhysicsBodyWrapper[];
+  const Ammo = globalThis.Ammo as
+    | { btVector3: new (x: number, y: number, z: number) => { destroy?: () => void } }
+    | undefined;
+
+  for (const wrapper of bodies) {
+    const bone = wrapper.bone;
+    if (!bone?.parent || wrapper.params.type === 0) continue;
+
+    bone.getWorldPosition(_stretchBoneA);
+    (bone.parent as THREE.Bone).getWorldPosition(_stretchBoneB);
+    if (_stretchBoneA.distanceTo(_stretchBoneB) <= maxParentDistance) continue;
+
+    wrapper.updateFromBone?.();
+    const rb = wrapper.body;
+    if (rb) {
+      rb.clearForces?.();
+      if (Ammo?.btVector3) {
+        const zero = new Ammo.btVector3(0, 0, 0);
+        rb.setLinearVelocity(zero);
+        rb.setAngularVelocity(zero);
+        zero.destroy?.();
+      }
+      rb.activate(true);
+    }
+    repairs++;
+  }
+
+  if (repairs > 0) {
+    mesh.skeleton?.update();
+    mesh.updateMatrixWorld(true);
+  }
+  return repairs;
 }
 
 export function applySwing(

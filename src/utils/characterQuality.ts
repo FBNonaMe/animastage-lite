@@ -95,7 +95,7 @@ export function getNativeLiteGpu(quality: CharacterQuality): CharacterQualityGpu
 }
 
 export function isPortraitFormat(format: ViewportFormat): boolean {
-  return format === '9:16';
+  return format === '9:16' || format === '4:5';
 }
 
 /** Browser phone / tablet WebView — cap GPU load. */

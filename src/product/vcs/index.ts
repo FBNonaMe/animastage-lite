@@ -1,0 +1,11 @@
+export * from './types';
+export { DEFAULT_VCS_STATE } from './types';
+export * from './applyVcs';
+export { useVcs, type VcsBridge, type VcsApi } from './useVcs';
+export { analyzeCharacterProfile, mergeCharacterProfiles } from './character/analyzeProfile';
+export { constrainToSafeVolume, computeMinCameraDistance, resolveFocusPoint } from './camera/safeVolume';
+export { VCS_DIRECTOR_MODES, getDirectorRules, resolveCinematicMode, pickVcsDirectorMode } from './camera/directorModes';
+export { generateVcsCameraPath } from './camera/pathGenerator';
+export { generateAutoDirectorVariations, pickBestVariation } from './autoDirector';
+export { analyzeReferenceVideo, formatReferenceAnalysis } from './reference/analyzer';
+export * from './shots/shotManager';

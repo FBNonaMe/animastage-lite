@@ -1,0 +1,510 @@
+/**
+ * Adaptive Studio UI 3.0 — global scale, safe areas, zero-overlap, touch.
+ */
+
+:root {
+  --studio-ui-scale: 1;
+  --studio-font-scale: 1;
+  --studio-space-scale: 1;
+  --studio-touch-min: 44px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* Dynamic Island / gesture home indicator padding helpers */
+  --studio-header-pad: max(0.5rem, var(--safe-top));
+  --studio-footer-pad: max(0.5rem, var(--safe-bottom));
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/*
+ * Do NOT lock body overflow globally — that kills mouse-wheel scroll on the landing.
+ * Studio /app uses html.studio-viewport-lock (see styles/viewport-shell.css).
+ */
+html.studio-viewport-lock body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* —— Safe areas —— */
+.studio-safe-area {
+  padding-top: var(--safe-top);
+  padding-right: var(--safe-right);
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+}
+
+.studio-safe-area-x {
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+.studio-safe-area-y {
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* —— Zero-overlap shell —— */
+.studio-app-root,
+.studio-adaptive-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.studio-adaptive-root[data-studio-layout] {
+  font-size: calc(14px * var(--studio-font-scale));
+}
+
+/* Touch-friendly controls when coarse pointer */
+html[data-studio-touch='1'] button,
+html[data-studio-touch='1'] [role='button'],
+html[data-studio-touch='1'] .ds-btn,
+html[data-studio-touch='1'] select {
+  min-height: var(--studio-touch-min);
+}
+
+html[data-studio-touch='1'] input[type='range'] {
+  min-height: calc(var(--studio-touch-min) * 0.55);
+}
+
+/* Prefer no horizontal page scroll */
+.studio-adaptive-root,
+.studio3-shell,
+.studio-viewport-column {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* —— Interface selection —— */
+.studio-iface-select {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, var(--safe-top)) max(1rem, var(--safe-right))
+    max(1rem, var(--safe-bottom)) max(1rem, var(--safe-left));
+  background: radial-gradient(ellipse at 30% 20%, #1a1030 0%, #080a0e 55%, #050608 100%);
+  overflow: auto;
+}
+
+.studio-iface-select--embedded {
+  position: absolute;
+  background: rgba(8, 10, 14, 0.96);
+}
+
+.studio-iface-select__card {
+  width: min(920px, 100%);
+  margin: auto;
+}
+
+.studio-iface-select__eyebrow {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a78bfa;
+}
+
+.studio-iface-select__title {
+  margin: 0.35rem 0 0.25rem;
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+  font-weight: 800;
+  color: #f4f4f5;
+}
+
+.studio-iface-select__sub {
+  margin: 0 0 1.25rem;
+  font-size: 0.8rem;
+  color: #a1a1aa;
+  max-width: 36rem;
+}
+
+.studio-iface-select__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .studio-iface-select__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.studio-iface-select__option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  text-align: left;
+  padding: 1rem;
+  border-radius: 0.85rem;
+  border: 1px solid #27272a;
+  background: rgba(12, 15, 20, 0.9);
+  color: inherit;
+  cursor: pointer;
+  min-height: 12rem;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.studio-iface-select__option:hover,
+.studio-iface-select__option.is-active {
+  border-color: rgba(57, 197, 187, 0.55);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
+}
+
+.studio-iface-select__option--rec {
+  border-color: rgba(167, 139, 250, 0.45);
+}
+
+.studio-iface-select__badge {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.25);
+  color: #ddd6fe;
+}
+
+.studio-iface-select__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.studio-iface-select__preview-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #71717a;
+}
+
+.studio-iface-select__mock {
+  width: 100%;
+  height: 5.5rem;
+  border-radius: 0.4rem;
+  border: 1px solid #1e2430;
+  background: #0d0e11;
+  overflow: hidden;
+}
+
+.studio-iface-select__mock .mock-bar {
+  height: 0.55rem;
+  background: #151922;
+}
+
+.studio-iface-select__mock .mock-body {
+  display: flex;
+  height: calc(100% - 0.55rem);
+}
+
+.studio-iface-select__mock .mock-side,
+.studio-iface-select__mock .mock-rail,
+.studio-iface-select__mock .mock-dock {
+  background: #12161e;
+  flex-shrink: 0;
+}
+
+.studio-iface-select__mock .mock-side {
+  width: 22%;
+}
+
+.studio-iface-select__mock .mock-rail {
+  width: 8%;
+}
+
+.studio-iface-select__mock .mock-dock {
+  width: 18%;
+}
+
+.studio-iface-select__mock .mock-vp {
+  flex: 1;
+  background: linear-gradient(145deg, #1a2230, #0d1118 60%);
+}
+
+.studio-iface-select__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.studio-iface-select__name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fafafa;
+}
+
+.studio-iface-select__level {
+  margin: 0;
+  font-size: 0.65rem;
+  color: #a1a1aa;
+}
+
+.studio-iface-select__desc {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: #a1a1aa;
+}
+
+.studio-iface-select__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.studio-iface-select__list li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: #d4d4d8;
+}
+
+.studio-iface-select__cta {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--studio-touch-min);
+  border-radius: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: rgba(57, 197, 187, 0.18);
+  color: #99f6e4;
+  border: 1px solid rgba(57, 197, 187, 0.35);
+}
+
+.studio-iface-select__option--rec .studio-iface-select__cta {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #e9d5ff;
+}
+
+.studio-iface-select__foot,
+.studio-iface-select__skip {
+  margin-top: 1rem;
+  font-size: 0.7rem;
+  color: #71717a;
+  text-align: center;
+}
+
+.studio-iface-select__skip {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: #a1a1aa;
+}
+
+/* —— Comparison —— */
+.studio-ui-compare {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1rem;
+  color: #e4e4e7;
+}
+
+.studio-ui-compare__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.studio-ui-compare__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.studio-ui-compare__close {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  min-width: var(--studio-touch-min);
+  min-height: var(--studio-touch-min);
+}
+
+.studio-ui-compare__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .studio-ui-compare__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.studio-ui-compare__col {
+  border: 1px solid #27272a;
+  border-radius: 0.75rem;
+  padding: 0.85rem;
+  background: #0c0f14;
+}
+
+.studio-ui-compare__col.is-current {
+  border-color: rgba(57, 197, 187, 0.45);
+}
+
+.studio-ui-compare__col h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+}
+
+.studio-ui-compare__desc {
+  margin: 0 0 0.65rem;
+  font-size: 0.7rem;
+  color: #a1a1aa;
+}
+
+.studio-ui-compare__section {
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.studio-ui-compare__col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.studio-ui-compare__col li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  margin: 0.2rem 0;
+}
+
+.studio-ui-compare__btn {
+  margin-top: 0.75rem;
+  width: 100%;
+  min-height: var(--studio-touch-min);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(57, 197, 187, 0.35);
+  background: rgba(57, 197, 187, 0.15);
+  color: #99f6e4;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.studio-ui-compare__btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.studio-ui-compare__note {
+  margin: 0.75rem 0 0;
+  font-size: 0.65rem;
+  color: #71717a;
+}
+
+/* —— Migration tips (non-blocking) —— */
+.studio-migration-tips {
+  position: fixed;
+  z-index: 90;
+  left: max(0.75rem, var(--safe-left));
+  right: max(0.75rem, var(--safe-right));
+  bottom: max(0.75rem, calc(var(--safe-bottom) + 0.5rem));
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  max-width: 26rem;
+  margin-left: auto;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(12, 15, 20, 0.94);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.studio-migration-tips__title {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #e9d5ff;
+}
+
+.studio-migration-tips__body {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: #d4d4d8;
+}
+
+.studio-migration-tips__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.studio-migration-tips__actions button {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.35rem 0.55rem;
+  min-height: 2rem;
+  border-radius: 0.4rem;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #e4e4e7;
+  cursor: pointer;
+}
+
+.studio-migration-tips__dismiss {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 0.25rem;
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-iface-select__option {
+    transition: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .studio-iface-select__option,
+  .studio-ui-compare__col,
+  .studio-migration-tips {
+    border-width: 2px;
+  }
+}

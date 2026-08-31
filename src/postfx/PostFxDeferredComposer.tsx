@@ -1,10 +1,21 @@
 import { EffectComposer } from '@react-three/postprocessing';
-import { useEffect, useState, type ReactNode } from 'react';
-import { useThree } from '@react-three/fiber';
+import { Children, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { isWebGlContextReady } from './isWebGlContextReady';
 import { usePostFxGlReady } from './usePostFxGlReady';
+import {
+  getGraphicsEpoch,
+  isGpuSuspended,
+  isWebGlContextLostActive,
+  subscribeGraphicsSystem,
+} from '../render/graphicsSystemStore';
 
-const WARMUP_FRAMES = 4;
+/** Consecutive ready frames before arming (demand frameloop). */
+const WARMUP_FRAMES = 16;
+/** Extra frames after warmup before mounting passes (avoids null contextAttributes.alpha). */
+const MOUNT_DELAY_FRAMES = 8;
+/** After GPU remount, keep EffectComposer off so the new context settles. */
+const POST_RECOVERY_COOLDOWN_MS = 1200;
 
 interface PostFxDeferredComposerProps {
   enabled: boolean;
@@ -14,8 +25,13 @@ interface PostFxDeferredComposerProps {
   children: ReactNode;
 }
 
+function graphicsBlocksComposer(): boolean {
+  return isGpuSuspended() || isWebGlContextLostActive();
+}
+
 /**
- * Mount EffectComposer only after WebGL context + a few frames (avoids alpha null crash).
+ * Mount EffectComposer only after WebGL context is stable for N frames.
+ * addPass reads getContextAttributes().alpha — throws if context is null.
  */
 export default function PostFxDeferredComposer({
   enabled,
@@ -24,35 +40,87 @@ export default function PostFxDeferredComposer({
   enableNormalPass = false,
   children,
 }: PostFxDeferredComposerProps) {
-  const gl = useThree((s) => s.gl);
+  const { gl, invalidate } = useThree();
   const glReady = usePostFxGlReady();
-  const [armed, setArmed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [graphicsOk, setGraphicsOk] = useState(() => !graphicsBlocksComposer());
+  const [graphicsEpoch, setGraphicsEpoch] = useState(() => getGraphicsEpoch());
+  const [cooldownDone, setCooldownDone] = useState(true);
+  const readyFramesRef = useRef(0);
+  const skipFirstEpochCooldownRef = useRef(true);
 
   useEffect(() => {
-    if (!enabled || !glReady) {
-      setArmed(false);
+    return subscribeGraphicsSystem(() => {
+      setGraphicsEpoch(getGraphicsEpoch());
+      const ok = !graphicsBlocksComposer();
+      setGraphicsOk(ok);
+      if (!ok) {
+        readyFramesRef.current = 0;
+        setMounted(false);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (skipFirstEpochCooldownRef.current) {
+      skipFirstEpochCooldownRef.current = false;
+      setCooldownDone(true);
+      return;
+    }
+    setCooldownDone(false);
+    readyFramesRef.current = 0;
+    setMounted(false);
+    const timer = window.setTimeout(() => setCooldownDone(true), POST_RECOVERY_COOLDOWN_MS);
+    return () => window.clearTimeout(timer);
+  }, [graphicsEpoch]);
+
+  useEffect(() => {
+    readyFramesRef.current = 0;
+    setMounted(false);
+  }, [enabled, glReady, gl, composerKey, graphicsOk, cooldownDone]);
+
+  useFrame(() => {
+    if (!enabled || !glReady || !graphicsOk || !cooldownDone || graphicsBlocksComposer()) {
+      readyFramesRef.current = 0;
+      if (mounted) setMounted(false);
       return;
     }
 
-    let frame = 0;
-    let raf = 0;
-    const tick = () => {
-      frame += 1;
-      if (frame >= WARMUP_FRAMES && isWebGlContextReady(gl)) {
-        setArmed(true);
-        return;
+    if (!isWebGlContextReady(gl)) {
+      readyFramesRef.current = 0;
+      if (mounted) setMounted(false);
+      invalidate();
+      return;
+    }
+
+    readyFramesRef.current += 1;
+    const threshold = WARMUP_FRAMES + MOUNT_DELAY_FRAMES;
+
+    if (readyFramesRef.current < threshold) {
+      if (mounted) setMounted(false);
+      invalidate();
+      return;
+    }
+
+    if (!mounted) {
+      if (isWebGlContextReady(gl) && !graphicsBlocksComposer()) {
+        setMounted(true);
       }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
+    }
+  });
 
-    return () => {
-      cancelAnimationFrame(raf);
-      setArmed(false);
-    };
-  }, [enabled, glReady, gl, composerKey]);
+  if (
+    !enabled ||
+    !glReady ||
+    !graphicsOk ||
+    !cooldownDone ||
+    !mounted ||
+    graphicsBlocksComposer()
+  ) {
+    return null;
+  }
 
-  if (!enabled || !glReady || !armed) {
+  if (!isWebGlContextReady(gl)) {
     return null;
   }
 
@@ -62,7 +130,7 @@ export default function PostFxDeferredComposer({
       multisampling={multisampling}
       enableNormalPass={enableNormalPass}
     >
-      {children}
+      {Children.toArray(children).filter(Boolean)}
     </EffectComposer>
   );
 }

@@ -3,6 +3,7 @@ import type {
   AppState,
   CameraSnapshot,
   TemplateApplyMode,
+  TemplateApplyOptions,
   TimelineActiveTrack,
   TimelineTrackId,
   VisualFxSettings,
@@ -11,6 +12,7 @@ import {
   addCameraKeyframe,
   deleteCameraKeyframe,
   mergeCameraKeyframes,
+  sanitizeCameraKeyframes,
 } from '../components/CameraLogic';
 import { getStageTargetTuple } from '../scene/cameraFraming';
 import {
@@ -25,9 +27,16 @@ interface UseTimelineOptions {
   appState: AppState;
   setAppState: React.Dispatch<React.SetStateAction<AppState>>;
   captureCameraRef?: React.MutableRefObject<(() => CameraSnapshot | null) | null>;
+  /** Snapshot before timeline/camera mutations for global undo stack. */
+  recordGlobalUndo?: () => void;
 }
 
-export function useTimeline({ appState, setAppState, captureCameraRef }: UseTimelineOptions) {
+export function useTimeline({
+  appState,
+  setAppState,
+  captureCameraRef,
+  recordGlobalUndo,
+}: UseTimelineOptions) {
   const maxFramesRef = useRef(appState.maxFrames);
 
   useEffect(() => {
@@ -83,7 +92,21 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
 
   const setCameraMode = useCallback(
     (mode: AppState['cameraMode']) => {
-      setAppState((prev) => ({ ...prev, cameraMode: mode }));
+      setAppState((prev) => ({
+        ...prev,
+        cameraMode: mode,
+        ...(mode === 'free'
+          ? {
+              timelineActiveTrack:
+                prev.timelineActiveTrack === 'camera' ? null : prev.timelineActiveTrack,
+              cameraStudio: {
+                ...prev.cameraStudio,
+                autoFocus: false,
+                directPlacement: true,
+              },
+            }
+          : {}),
+      }));
     },
     [setAppState]
   );
@@ -98,8 +121,16 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
     [setAppState]
   );
 
+  const replaceVisualFx = useCallback(
+    (next: VisualFxSettings) => {
+      setAppState((prev) => ({ ...prev, visualFx: next }));
+    },
+    [setAppState]
+  );
+
   const handleRegisterKeyframe = useCallback(
     (modelId: string) => {
+      recordGlobalUndo?.();
       setAppState((prev) => {
         const frame = prev.currentFrame;
 
@@ -122,16 +153,41 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
             return {
               ...m,
               keyframes: registerAllKeyframesAtFrame(m.keyframes, frame, m.morphs, m.bones),
+              // Unlock timeline: VMD must not own the pose when user keys the body.
+              vmdPlaybackEnabled: m.hasVmdAnimation ? false : m.vmdPlaybackEnabled,
+              activeTemplateId: null,
+              clipDirty: true,
             };
           }),
         };
       });
     },
-    [captureCameraRef, setAppState]
+    [captureCameraRef, recordGlobalUndo, setAppState]
   );
+
+  const handleRegisterCameraKeyframe = useCallback(() => {
+    recordGlobalUndo?.();
+    setAppState((prev) => {
+      const frame = prev.currentFrame;
+      const snapshot = captureCameraRef?.current?.();
+      if (!snapshot) return prev;
+      return {
+        ...prev,
+        cameraMode: 'mmd',
+        timelineActiveTrack: 'camera',
+        cameraStudio: {
+          ...prev.cameraStudio,
+          manualCameraLock: false,
+          autoFocus: false,
+        },
+        cameraKeyframes: addCameraKeyframe(prev.cameraKeyframes, frame, snapshot),
+      };
+    });
+  }, [captureCameraRef, recordGlobalUndo, setAppState]);
 
   const handleDeleteKeyframe = useCallback(
     (modelId: string, trackName: string, frame: number) => {
+      recordGlobalUndo?.();
       setAppState((prev) => {
         if (trackName === 'camera') {
           return {
@@ -152,10 +208,11 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
         };
       });
     },
-    [setAppState]
+    [recordGlobalUndo, setAppState]
   );
 
   const handleClearAllKeyframes = useCallback(() => {
+    recordGlobalUndo?.();
     setPlayheadFrame(0);
     setAppState((prev) => {
       const modelId = prev.selectedObjectId;
@@ -173,12 +230,14 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
         ),
       };
     });
-  }, [setAppState]);
+  }, [recordGlobalUndo, setAppState]);
 
   const handleApplyTemplate = useCallback(
-    (templateId: string, mode: TemplateApplyMode = 'merge') => {
+    (templateId: string, mode: TemplateApplyMode = 'merge', options: TemplateApplyOptions = {}) => {
       const template = getAnimationTemplate(templateId);
       if (!template) return;
+
+      const useTemplateCamera = options.useTemplateCamera === true;
 
       setAppState((prev) => {
         const modelId = prev.selectedObjectId;
@@ -195,22 +254,44 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
         let timelineActiveTrack = prev.timelineActiveTrack;
         let models = prev.models;
         let visualFx = prev.visualFx;
+        let cameraStudio = prev.cameraStudio;
 
-        const incomingCamera = template.generateCameraKeyframes
-          ? template.generateCameraKeyframes(prev.maxFrames)
-          : null;
+        const incomingCamera =
+          useTemplateCamera && template.generateCameraKeyframes
+            ? template.generateCameraKeyframes(prev.maxFrames)
+            : null;
         const incomingModel =
           template.generateModelKeyframes && modelId
             ? template.generateModelKeyframes(prev.maxFrames)
             : null;
 
         if (incomingCamera) {
-          cameraKeyframes =
+          const safeCamera = sanitizeCameraKeyframes(
             mode === 'merge'
               ? mergeCameraKeyframes(prev.cameraKeyframes, incomingCamera)
-              : incomingCamera;
+              : incomingCamera
+          );
+          cameraKeyframes = safeCamera;
           cameraMode = 'mmd';
           timelineActiveTrack = timelineActiveTrack ?? 'camera';
+          cameraStudio = {
+            ...prev.cameraStudio,
+            autoFocus: false,
+            manualCameraLock: false,
+          };
+        } else if (incomingModel) {
+          // Motion only — keep user's free camera; don't chase bones during dance.
+          if (mode === 'replace' && !options.preserveCameraKeyframes) {
+            cameraKeyframes = [];
+          }
+          cameraMode = 'free';
+          timelineActiveTrack = null;
+          cameraStudio = {
+            ...prev.cameraStudio,
+            autoFocus: false,
+            manualCameraLock: true,
+            directPlacement: true,
+          };
         }
 
         const cameraOrbitAnchor = incomingCamera
@@ -289,6 +370,7 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
           cameraKeyframes,
           cameraOrbitAnchor,
           cameraMode,
+          cameraStudio,
           timelineActiveTrack,
           models,
           visualFx,
@@ -346,7 +428,9 @@ export function useTimeline({ appState, setAppState, captureCameraRef }: UseTime
     setTimelineActiveTrack,
     setCameraMode,
     setVisualFx,
+    replaceVisualFx,
     handleRegisterKeyframe,
+    handleRegisterCameraKeyframe,
     handleDeleteKeyframe,
     handleAddSampleKeyframes,
     handleApplyTemplate,

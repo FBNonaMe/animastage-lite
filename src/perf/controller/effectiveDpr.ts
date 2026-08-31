@@ -1,3 +1,11 @@
+/**
+ * Character-quality-first DPR resolution.
+ *
+ * Degrade levels (CPU/GPU adaptive) NEVER reduce render resolution — they only
+ * gate post-FX / lighting / scene via effectiveVisualFx + renderAdaptation.
+ * The ONLY source of render-scale reduction is the perf governor's last-resort
+ * tiers, floored at 0.9 (desktop/tablet) / 0.85 (phone).
+ */
 import type { CharacterQuality, ViewportFormat } from '../types';
 import {
   getCharacterQualityDpr,
@@ -7,30 +15,35 @@ import { getEffectiveDegradeLevel } from '../effectiveDegradeLevel';
 import { isModelLoadActive } from '../modelLoadProfile';
 import { getMobileSafeDprScale, isMobileRuntimeCapsActive } from '../mobileRuntimeCaps';
 import { getPlaybackDprFloor } from '../playbackPerfMode';
-import { getPerfGovernorScale, MIN_GOVERNOR_RENDER_SCALE } from './perfGovernor';
+import {
+  getMinGovernorRenderScale,
+  getPerfGovernorFxGate,
+  getPerfGovernorScale,
+} from './perfGovernor';
 
-/** Hard floor — never go below ~70% effective DPR (readable on 1080p+). */
-const MIN_EFFECTIVE_DPR = 0.68;
+/** Hard floor on the final canvas DPR — characters must stay readable. */
+const MIN_EFFECTIVE_DPR = 0.85;
 
 export function getEffectiveDprMultiplier(): number {
-  if (isModelLoadActive()) return 0.72;
+  const floor = getMinGovernorRenderScale();
 
-  const level = getEffectiveDegradeLevel();
-  let degradeMul = 1;
-  if (level >= 4) degradeMul = 0.72;
-  else if (level >= 3) degradeMul = 0.78;
-  else if (level >= 2) degradeMul = 0.84;
-  else if (level >= 1) degradeMul = 0.92;
+  // Model load: gentle, still crisp — never the old 0.72 blur.
+  if (isModelLoadActive()) return floor;
 
-  let mul = Math.min(getPerfGovernorScale(), degradeMul);
-  mul = Math.max(mul, MIN_GOVERNOR_RENDER_SCALE);
+  // Governor scale is 1.0 for all FX-only tiers; ≤0.95 only in last-resort tiers.
+  let mul = Math.max(getPerfGovernorScale(), floor);
+
+  // Mobile SAFE mode is a platform baseline (native DPR on phones is 2–4×);
+  // apply it, but keep the adaptive result above the readability floor.
   if (isMobileRuntimeCapsActive()) {
     mul *= getMobileSafeDprScale();
   }
+
   const playbackFloor = getPlaybackDprFloor();
   if (playbackFloor > 0) {
     mul = Math.max(mul, playbackFloor);
   }
+
   return mul;
 }
 
@@ -49,13 +62,24 @@ export function resolveEffectiveCanvasDpr(
   return Math.max(MIN_EFFECTIVE_DPR, Math.min(2, base * mul));
 }
 
+/**
+ * Shadow resolution — reduced by governor lighting tiers and degrade levels
+ * BEFORE any render-scale reduction happens.
+ */
 export function resolveEffectiveShadowMapSize(
   quality: CharacterQuality,
   viewportFormat: ViewportFormat
 ): number {
   const base = getCharacterQualityGpu(quality, viewportFormat).shadowMapSize;
+
+  const gate = getPerfGovernorFxGate();
+  let size = base;
+  if (gate.shadowScale < 1) {
+    size = Math.max(512, Math.floor(size * gate.shadowScale));
+  }
+
   const level = getEffectiveDegradeLevel();
-  if (level >= 2) return Math.max(512, Math.floor(base * 0.5));
-  if (level >= 1) return Math.max(768, Math.floor(base * 0.65));
-  return base;
+  if (level >= 2) return Math.max(512, Math.floor(size * 0.5));
+  if (level >= 1) return Math.max(768, Math.floor(size * 0.75));
+  return size;
 }

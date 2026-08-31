@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Bookmark, Download, Trash2, Upload } from 'lucide-react';
 import type { PoseSnapshotV1 } from '../../pose/poseTypes';
 import { PRESET_POSES } from '../../pose/presetPoses';
+import { SMART_POSE_PRESETS } from '../../pose/smartPosePresets';
 import {
   addCustomPose,
   downloadPoseJson,
@@ -28,7 +29,7 @@ export default function PoseLibraryPanel({
   const [custom, setCustom] = useState<PoseSnapshotV1[]>(() => loadCustomPoses());
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const allPoses = useMemo(() => [...PRESET_POSES, ...custom], [custom]);
+  const allPoses = useMemo(() => [...PRESET_POSES, ...SMART_POSE_PRESETS, ...custom], [custom]);
 
   const refreshCustom = useCallback(() => {
     setCustom(loadCustomPoses());
@@ -53,13 +54,16 @@ export default function PoseLibraryPanel({
       </div>
 
       <p className="text-[9px] text-zinc-500 leading-snug">
-        Applies to paused model (VMD off). Physics hair/skirt bones are skipped. Use Register Keyframe to bake into timeline.
+        Applies to paused model (VMD off). Physics hair/skirt bones are skipped. Smart Pose presets use IK-friendly angles. Use Register Keyframe to bake into timeline.
       </p>
+
+      <p className="text-[8px] font-bold uppercase text-zinc-600 m-0">Built-in · Smart Pose · Custom</p>
 
       <div className="grid grid-cols-3 gap-1.5 max-h-[200px] overflow-y-auto pr-0.5">
         {allPoses.map((pose) => {
           const isActive = activePoseId === pose.id;
-          const isCustom = !pose.id.startsWith('preset_');
+          const isCustom = !pose.id.startsWith('preset_') && !pose.id.startsWith('smart_');
+          const isSmart = pose.id.startsWith('smart_');
           return (
             <button
               key={pose.id}
@@ -75,6 +79,9 @@ export default function PoseLibraryPanel({
             >
               <span className="text-xl leading-none">{pose.thumbnail}</span>
               <span className="text-[8px] font-bold uppercase truncate w-full">{pose.name}</span>
+              {isSmart && (
+                <span className="text-[7px] text-violet-400/80 uppercase">Smart</span>
+              )}
               {isCustom && (
                 <span
                   role="button"

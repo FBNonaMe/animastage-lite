@@ -1,7 +1,10 @@
 import * as THREE from 'three';
-import type { ViewportFormat } from '../types';
+import type { ViewportFormat, RenderMode } from '../types';
 import type { CharacterQuality } from './characterQuality';
 import { getCharacterQualityGpu } from './characterQuality';
+import { applyMmdFidelityMaterials, isMmdFidelityMode, snapshotToonForFidelity } from './mmdFidelityMaterials';
+import { isAnimeNprMode } from './animeNprMode';
+import type { AutoLuminousLevel } from '../stylePacks/gallery/types';
 
 type MaterialKind = 'skin' | 'hair' | 'eye' | 'cloth' | 'metal' | 'default';
 
@@ -71,10 +74,19 @@ function toStandardMaterial(
 export function enhanceMmdMaterials(
   root: THREE.Object3D,
   quality: CharacterQuality,
-  viewportFormat: ViewportFormat = '16:9'
+  viewportFormat: ViewportFormat = '16:9',
+  materialDetailing = false,
+  renderMode: RenderMode = 'pbr_cinematic',
+  autoLuminousLevel: AutoLuminousLevel = 'auto'
 ): void {
+  if (isAnimeNprMode(renderMode)) return;
+  if (isMmdFidelityMode(renderMode)) {
+    applyMmdFidelityMaterials(root, { viewportFormat, autoLuminousLevel });
+    return;
+  }
+
   const { enhanceMaterials } = getCharacterQualityGpu(quality, viewportFormat);
-  if (!enhanceMaterials) return;
+  if (!enhanceMaterials && !materialDetailing) return;
 
   root.traverse((child) => {
     if (!(child as THREE.Mesh).isMesh) return;
@@ -100,6 +112,7 @@ export function enhanceMmdMaterials(
         return material;
       }
 
+      snapshotToonForFidelity(material);
       const std = toStandardMaterial(material, meshName);
       std.userData.mmdEnhanced = true;
       std.userData.mmdEnhancedViewport = viewportFormat;

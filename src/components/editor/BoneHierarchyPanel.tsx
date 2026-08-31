@@ -11,6 +11,8 @@ interface BoneHierarchyPanelProps {
   boneGroups: { id: string; name: string; boneNames: string[]; muted: boolean }[];
 }
 
+const MAX_BONE_DEPTH = 64;
+
 export default function BoneHierarchyPanel({
   bones,
   selectedBoneName,
@@ -21,20 +23,26 @@ export default function BoneHierarchyPanel({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const tree = useMemo(() => {
-    const roots = bones.filter((b) => !b.parentName || !bones.some((p) => p.name === b.parentName));
-    return roots;
+    const names = new Set(bones.map((b) => b.name));
+    const roots = bones.filter((b) => !b.parentName || !names.has(b.parentName));
+    if (roots.length > 0) return roots;
+    return bones.length > 0 ? [bones[0]!] : [];
   }, [bones]);
 
   const childrenOf = (parent: string) => bones.filter((b) => b.parentName === parent);
 
-  const renderBone = (bone: PmxBoneInfo, depth: number) => {
-    const kids = childrenOf(bone.name);
+  const renderBone = (bone: PmxBoneInfo, depth: number, visited: Set<string>) => {
+    if (visited.has(bone.name) || depth > MAX_BONE_DEPTH) return null;
+    const nextVisited = new Set(visited);
+    nextVisited.add(bone.name);
+
+    const kids = childrenOf(bone.name).filter((k) => !nextVisited.has(k.name));
     const hasKids = kids.length > 0;
     const isCollapsed = collapsed.has(bone.name);
     const selected = selectedBoneName === bone.name;
 
     return (
-      <div key={bone.name}>
+      <div key={`${bone.name}@${depth}`}>
         <div
           className={`flex items-center gap-1 py-0.5 pr-1 text-[10px] cursor-pointer rounded ${
             selected ? 'bg-teal-950/50 text-[#39c5bb]' : 'text-zinc-400 hover:bg-zinc-800'
@@ -64,7 +72,7 @@ export default function BoneHierarchyPanel({
           <Bone className="w-3 h-3 shrink-0" />
           <span className="truncate">{bone.name}</span>
         </div>
-        {hasKids && !isCollapsed && kids.map((k) => renderBone(k, depth + 1))}
+        {hasKids && !isCollapsed && kids.map((k) => renderBone(k, depth + 1, nextVisited))}
       </div>
     );
   };
@@ -93,7 +101,7 @@ export default function BoneHierarchyPanel({
           ))}
         </div>
       )}
-      {tree.map((b) => renderBone(b, 0))}
+      {tree.map((b) => renderBone(b, 0, new Set()))}
     </div>
   );
 }

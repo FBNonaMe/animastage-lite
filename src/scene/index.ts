@@ -3,6 +3,7 @@ export {
   canAddSceneCharacter,
   getSpawnPositionForIndex,
   getNextSpawnPosition,
+  getSpawnPositionForImport,
   countVisibleModels,
 } from './sceneModelLayout';
 export {
@@ -20,3 +21,7 @@ export {
   getStageTargetTuple,
   getStageTargetVector,
 } from './cameraFraming';
+export {
+  resolveVmdAttachTargetModelId,
+  resolveVmdAttachTargetLabel,
+} from './resolveVmdAttachTarget';

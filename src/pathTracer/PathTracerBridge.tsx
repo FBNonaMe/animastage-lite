@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { AppState } from '../types';
+import { DEFAULT_PATH_TRACER_SETTINGS } from '../types';
 import { bakeSceneForPathTracer, cameraFromThree, focusDistFromBaked } from './meshBake';
 import { PathTracerEngine } from './PathTracerEngine';
 import { resolvePathTracerTierConfig } from './pathTracerTierConfig';
@@ -11,8 +12,8 @@ import {
   isPathTracerSettled,
   PATH_TRACER_LAB_SAFE_LIMITS,
 } from './pathTracerSafety';
-import type { PathTracerRenderSettings, PathTracerSceneData } from './types';
-import type { PathTracerLabHudStats } from '../webglPathTracer/PathTracerLabHud';
+import type { PathTracerRenderSettings, PathTracerSceneData, PathTracerLabHudStats } from './types';
+import { loadOidnDenoiser, oidnIsSupported, type OidnDenoiser } from './oidn/OidnClient';
 
 interface PathTracerBridgeProps {
   appState: AppState;
@@ -42,15 +43,18 @@ function buildRenderSettings(
   }
 ): PathTracerRenderSettings {
   const tier = resolvePathTracerTierConfig(appState.renderTier, labWithScene);
-  const pt = appState.pathTracer;
+  const pt = appState.pathTracer ?? DEFAULT_PATH_TRACER_SETTINGS;
   const userBounces = Math.min(5, Math.max(1, pt.bounces));
+  const oidnOn = pt.oidnEnabled === true;
+  const preferOidn = pt.oidnPreferAi !== false;
+  const baseDenoise = adaptive?.enableDenoise ?? tier.enableDenoise;
   return {
     visualFx: appState.visualFx,
     bounces: labWithScene
       ? Math.min(userBounces, adaptive?.maxBounces ?? tier.maxBounces, tier.maxBounces)
       : tier.maxBounces,
     samplesPerFrame: adaptive?.samplesPerFrame ?? 1,
-    denoise: adaptive?.enableDenoise ?? tier.enableDenoise,
+    denoise: oidnOn && preferOidn ? false : baseDenoise,
     denoiseMaxRadius: adaptive?.denoiseMaxRadius ?? tier.denoiseMaxRadius,
     bloom: tier.enableBloom,
     bloomThreshold: appState.visualFx.bloomThreshold ?? 0.85,
@@ -138,10 +142,16 @@ export default function PathTracerBridge({
   const frameMsRef = useRef(16);
   const lastCameraStillRef = useRef(true);
   const effectiveBouncesRef = useRef(3);
+  const oidnRef = useRef<OidnDenoiser | null>(null);
+  const oidnOverlayRef = useRef<HTMLCanvasElement | null>(null);
+  const oidnBusyRef = useRef(false);
+  const lastOidnFrameRef = useRef(0);
 
   const labWithScene =
     appState.pathTracerLabEnabled && hasVisibleModels(appState);
   const tierCfg = resolvePathTracerTierConfig(appState.renderTier, labWithScene);
+
+  const pt = appState.pathTracer ?? DEFAULT_PATH_TRACER_SETTINGS;
 
   const pathTraceVideo = isRecordingVideo;
   const pathTracePreview =
@@ -188,6 +198,19 @@ export default function PathTracerBridge({
     gpuCanvasRef.current = canvas;
     if (pathTracerCanvasRef) pathTracerCanvasRef.current = canvas;
 
+    const oidnOverlay = document.createElement('canvas');
+    oidnOverlay.className = 'absolute inset-0 w-full h-full pointer-events-none';
+    oidnOverlay.style.opacity = '0';
+    oidnOverlay.style.zIndex = '56';
+    containerRef.current?.appendChild(oidnOverlay);
+    oidnOverlayRef.current = oidnOverlay;
+
+    if (appState.pathTracer?.oidnEnabled && oidnIsSupported()) {
+      void loadOidnDenoiser().then((d) => {
+        oidnRef.current = d;
+      });
+    }
+
     const engine = new PathTracerEngine(canvas);
     engineRef.current = engine;
     initPromiseRef.current = PathTracerEngine.isSupported()
@@ -207,6 +230,8 @@ export default function PathTracerBridge({
       cancelled = true;
       engine.dispose();
       canvas.remove();
+      oidnOverlayRef.current?.remove();
+      oidnOverlayRef.current = null;
       gpuCanvasRef.current = null;
       if (pathTracerCanvasRef) pathTracerCanvasRef.current = null;
       engineRef.current = null;
@@ -216,13 +241,26 @@ export default function PathTracerBridge({
   }, [pathTraceActive, containerRef, pathTracerCanvasRef, labWithScene]);
 
   useEffect(() => {
+    if (!appState.pathTracer?.oidnEnabled || !oidnIsSupported()) {
+      oidnRef.current?.abort();
+      oidnRef.current = null;
+      if (oidnOverlayRef.current) oidnOverlayRef.current.style.opacity = '0';
+      if (pathTracerCanvasRef?.current) pathTracerCanvasRef.current.style.opacity = '';
+      return;
+    }
+    void loadOidnDenoiser().then((d) => {
+      oidnRef.current = d;
+    });
+  }, [appState.pathTracer?.oidnEnabled, pathTracerCanvasRef]);
+
+  useEffect(() => {
     void initPromiseRef.current?.then(() => {
       const engine = engineRef.current;
       if (!engine) return;
       engine.setSettings(buildRenderSettings(appState, labWithScene));
       const scale =
         pathTraceLab && governorRef.current
-          ? governorRef.current.tick(16, true, appState.pathTracer.bounces)
+          ? governorRef.current.tick(16, true, pt.bounces)
               .resolutionScale
           : tierCfg.resolutionScale;
       if (Math.abs(scale - appliedScaleRef.current) > 0.02) {
@@ -264,7 +302,7 @@ export default function PathTracerBridge({
   useEffect(() => {
     engineRef.current?.resetAccumulation();
     cameraTrackingInitRef.current = false;
-  }, [appState.pathTracer.bounces, appState.pathTracer.exposure, appState.pathTracer.sunAltDeg]);
+  }, [pt.bounces, pt.exposure, pt.sunAltDeg]);
 
   useFrame((_, delta) => {
     if (pathTraceLab) return;
@@ -298,7 +336,7 @@ export default function PathTracerBridge({
         onHudUpdate({
           spp: 0,
           fps: 0,
-          bounces: appState.pathTracer.bounces,
+          bounces: pt.bounces,
           mode: 'scene',
           triangleCount: 0,
           qualityHint: sceneBusy ? 'Import…' : 'Stabilizing…',
@@ -370,7 +408,7 @@ export default function PathTracerBridge({
             ? governorRef.current.tick(
                 frameMsRef.current,
                 cameraStill,
-                appState.pathTracer.bounces
+                pt.bounces
               )
             : null;
         if (adaptive) {
@@ -397,7 +435,7 @@ export default function PathTracerBridge({
         engine.setCamera(
           cameraFromThree(persp, {
             aperture:
-              (pathTraceLab ? appState.pathTracer.aperture : 0) ||
+              (pathTraceLab ? pt.aperture : 0) ||
               (appState.visualFx.dofEnabled && !pathTraceVideo ? 0.015 : 0),
             focusDist: baked ? focusDistFromBaked(persp, baked) : 15,
           })
@@ -458,6 +496,43 @@ export default function PathTracerBridge({
 
         const spp = engine.getSampleCount();
         setOverlayVisible(pathTracerCanvasRef?.current, true, spp, pathTraceLab);
+
+        if (
+          appState.pathTracer?.oidnEnabled &&
+          oidnRef.current &&
+          spp >= 12 &&
+          lastCameraStillRef.current &&
+          !oidnBusyRef.current &&
+          engine.getSampleCount() - lastOidnFrameRef.current >= 8
+        ) {
+          oidnBusyRef.current = true;
+          lastOidnFrameRef.current = spp;
+          const src = engine.getCanvas();
+          void oidnRef.current
+            .denoiseCanvas(src)
+            .then((out) => {
+              const overlay = oidnOverlayRef.current;
+              if (!overlay) return;
+              overlay.width = out.width;
+              overlay.height = out.height;
+              const ctx = overlay.getContext('2d');
+              if (!ctx) return;
+              ctx.clearRect(0, 0, out.width, out.height);
+              ctx.drawImage(out, 0, 0);
+              overlay.style.opacity = String(
+                Math.min(1, 0.35 + Math.min(spp, 128) / 180)
+              );
+              if (pathTracerCanvasRef?.current) {
+                pathTracerCanvasRef.current.style.opacity = '0';
+              }
+            })
+            .catch((err) => {
+              console.warn('[PathTracer] OIDN pass failed:', err);
+            })
+            .finally(() => {
+              oidnBusyRef.current = false;
+            });
+        }
 
         const elapsed = performance.now() - frameStart;
         fpsAccRef.current += 1000 / Math.max(elapsed, 1);

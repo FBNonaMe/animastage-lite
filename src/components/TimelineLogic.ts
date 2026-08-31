@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { BoneState, MorphState, TimelineKeyframe, TimelineTrackId } from '../types';
+import type { TimelineBoneMap, TimelineBoneTrack } from '../utils/genericSkeletonBinding';
+import { getTimelineBoneMap } from '../utils/genericSkeletonBinding';
 import { evaluateSegment } from '../editor/curveMath';
 
 export const TIMELINE_TRACK_IDS = [
@@ -52,9 +53,29 @@ const DEG2RAD = Math.PI / 180;
 type RestPoseMap = Record<string, [number, number, number]>;
 
 const MORPH_NAME_CANDIDATES: Record<'eyes' | 'mouth' | 'brow', string[]> = {
-  eyes: ['まばたき', 'blink_l', 'blink_r', 'blink', 'eyesblink', 'eyes close'],
-  mouth: ['あ', 'mouth_open', 'mouthopen', 'mouth smile', 'lips:a', 'open', 'a'],
-  brow: ['困る', 'sad_brow', 'sad', 'browsad', 'troubled', 'brow raise'],
+  eyes: [
+    'まばたき',
+    'blink_l',
+    'blink_r',
+    'blink',
+    'eyesblink',
+    'eyes close',
+    'eye_close',
+    'eyes_closed',
+    'eyeblink',
+  ],
+  mouth: [
+    'あ',
+    'mouth_open',
+    'mouthopen',
+    'mouth smile',
+    'mouth_smile',
+    'lips:a',
+    'open',
+    'a',
+    'smile',
+  ],
+  brow: ['困る', 'sad_brow', 'sad', 'browsad', 'troubled', 'brow raise', 'brow_up', 'angry'],
 };
 
 const BONE_TRACK_BINDINGS: Record<
@@ -152,16 +173,20 @@ export function mergeTimelineKeyframes(
   return Array.from(map.values()).sort((a, b) => a.frame - b.frame || a.track.localeCompare(b.track));
 }
 
-export function getDefaultLiveValues(bones: BoneState[], morphs: MorphState): TimelineLiveValues {
+export function getDefaultLiveValues(
+  bones: BoneState[],
+  morphs?: MorphState
+): TimelineLiveValues {
   const head = findBoneInList(bones, 'head');
   const neck = findBoneInList(bones, 'neck');
   const spine = findBoneInList(bones, 'spine');
   const waist = findBoneInList(bones, 'waist');
   const armL = findBoneInList(bones, 'arm_L');
   const armR = findBoneInList(bones, 'arm_R');
+  const m = morphs ?? { eyes: 0, mouth: 0, brow: 0 };
 
   return {
-    morphs: { ...morphs },
+    morphs: { ...m },
     boneHeadY: head?.rotationY ?? 0,
     boneNeckX: neck?.rotationX ?? 0,
     boneSpineY: spine?.rotationY ?? 0,
@@ -227,9 +252,11 @@ export { evaluateTimelineWithLayers } from '../editor/animationLayers';
 export function evaluateTimelineAtFrame(
   keyframes: TimelineKeyframe[],
   frame: number,
-  live: TimelineLiveValues
+  live?: TimelineLiveValues
 ): TimelineEvaluated {
-  const defaults = buildDefaultsFromLive(live);
+  const defaults = buildDefaultsFromLive(
+    live ?? getDefaultLiveValues([], { eyes: 0, mouth: 0, brow: 0 })
+  );
   const result = { ...defaults };
 
   for (const track of TIMELINE_TRACK_IDS) {
@@ -291,7 +318,17 @@ function findMorphIndex(dict: Record<string, number>, candidates: string[]): num
   return -1;
 }
 
-function findBone(skeleton: THREE.Skeleton, candidates: string[]): THREE.Bone | null {
+function findBone(
+  skeleton: THREE.Skeleton,
+  candidates: string[],
+  boneMap?: TimelineBoneMap,
+  track?: TimelineBoneTrack
+): THREE.Bone | null {
+  if (track && boneMap?.[track]) {
+    const mapped = skeleton.bones.find((b) => b.name === boneMap[track]);
+    if (mapped) return mapped;
+  }
+
   for (const candidate of candidates) {
     const exact = skeleton.bones.find(
       (b) => b.name === candidate || b.name.toLowerCase() === candidate.toLowerCase()
@@ -336,6 +373,7 @@ export function applyTimelineToSkinnedMesh(
 
   if (!skipBones && mesh.skeleton) {
     const rest = (mesh.userData.mmdRestPose as RestPoseMap | undefined) ?? {};
+    const boneMap = getTimelineBoneMap(mesh);
     const boneAdjustments = new Map<string, { x: number; y: number; z: number }>();
 
     for (const [track, binding] of Object.entries(BONE_TRACK_BINDINGS) as Array<
@@ -344,7 +382,7 @@ export function applyTimelineToSkinnedMesh(
         (typeof BONE_TRACK_BINDINGS)[keyof typeof BONE_TRACK_BINDINGS],
       ]
     >) {
-      const bone = findBone(mesh.skeleton, binding.candidates);
+      const bone = findBone(mesh.skeleton, binding.candidates, boneMap, track);
       if (!bone) continue;
 
       const entry = boneAdjustments.get(bone.name) ?? { x: 0, y: 0, z: 0 };

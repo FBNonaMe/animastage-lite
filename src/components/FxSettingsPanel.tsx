@@ -1,15 +1,34 @@
-import { Aperture, Sparkles, Sun, Smartphone } from 'lucide-react';
-import type { CharacterQuality, RtxSettings, ViewportFormat, VisualFxSettings } from '../types';
+import { Aperture, Sparkles, Sun, Smartphone, Clapperboard } from 'lucide-react';
+import type {
+  AppState,
+  CameraSnapshot,
+  CharacterQuality,
+  MmdLiteConfig,
+  PathTracerSettings,
+  PmxMaterialInfo,
+  RtxSettings,
+  StyleGalleryRuntimeState,
+  ViewportFormat,
+  VisualFxSettings,
+} from '../types';
 import { CHARACTER_QUALITY_PRESETS } from '../utils/characterQuality';
 import { DEFAULT_RTX_SETTINGS, PORTRAIT_RTX_SETTINGS } from '../utils/rtxSettings';
-import {
-  applyMmdRtxLiteStyle,
-  MMD_RTX_LITE_STYLES,
-  type MmdRtxLiteStyleId,
-} from '../visualFx/mmdRtxLitePresets';
 import MmdRtxExtrasPanel from './MmdRtxExtrasPanel';
 import VideoRecordPanel from './VideoRecordPanel';
-import type { CameraSnapshot, MmdLiteConfig, PathTracerSettings } from '../types';
+import ShaderGalleryPanel from './stylePacks/ShaderGalleryPanel';
+import MaterialInspectorPanel from './stylePacks/MaterialInspectorPanel';
+import type { useVisualStyles } from '../stylePacks/useVisualStyles';
+import type { SmartVideoMetadata, SmartMetadataLocale, SocialPlatformId } from '../smartMetadata/types';
+import type { CinematicEngineApi } from '../product/cinematic';
+import type { VcsApi } from '../product/vcs';
+import type { SceneComposerState } from '../sceneComposer';
+import CinematicPanel from './cinematic/CinematicPanel';
+import VcsDirectorPanel from './vcs/VcsDirectorPanel';
+import LightingStudioPanel from './lighting/LightingStudioPanel';
+import LutControls from './postfx/LutControls';
+import BundledEffectsPanel from './standaloneEffects/BundledEffectsPanel';
+
+type VisualStylesApi = ReturnType<typeof useVisualStyles>;
 
 interface FxSettingsPanelProps {
   visualFx: VisualFxSettings;
@@ -34,10 +53,35 @@ interface FxSettingsPanelProps {
   onExportDurationSecChange?: (sec: number) => void;
   onRenderMp4?: () => void;
   onLiveRecord?: () => void;
+  onCinemaRender?: () => void;
+  videoMetadata?: SmartVideoMetadata | null;
+  showVideoInformation?: boolean;
+  onRegenerateMetadata?: () => void;
+  onMetadataLocaleChange?: (locale: SmartMetadataLocale) => void;
+  onMetadataPlatformChange?: (platform: SocialPlatformId) => void;
+  onMetadataTitleSelect?: (index: number) => void;
+  onMetadataCopyFeedback?: (message: string) => void;
   pathTracerLabEnabled?: boolean;
   pathTracer?: PathTracerSettings;
   onSetPathTracerLabEnabled?: (enabled: boolean) => void;
   onPatchPathTracer?: (patch: Partial<PathTracerSettings>) => void;
+  /** Open Smart Studio mode picker or enter a mode directly. */
+  onOpenSmartStudio?: () => void;
+  onEnterSmartStudioMode?: (mode: 'showcase' | 'photo' | 'video') => void;
+  onOpenCineStudio?: () => void;
+  onOpenReferenceCameraStudio?: () => void;
+  visualStyles?: VisualStylesApi;
+  styleGallery?: StyleGalleryRuntimeState;
+  onPatchStyleGallery?: (patch: Partial<StyleGalleryRuntimeState>) => void;
+  pmxMaterials?: PmxMaterialInfo[];
+  highlightMaterial?: string | null;
+  onSelectMaterial?: (name: string | null) => void;
+  cinematicEngine?: CinematicEngineApi;
+  vcs?: VcsApi;
+  appState?: AppState;
+  onPatchSceneComposer?: (patch: Partial<SceneComposerState>) => void;
+  onReplaceSceneComposer?: (next: SceneComposerState) => void;
+  onPatchSceneStudio?: (patch: Partial<import('../sceneStudio').SceneStudioState>) => void;
 }
 
 function SliderRow({
@@ -98,10 +142,34 @@ export default function FxSettingsPanel({
   onExportDurationSecChange,
   onRenderMp4,
   onLiveRecord,
+  onCinemaRender,
+  videoMetadata,
+  showVideoInformation,
+  onRegenerateMetadata,
+  onMetadataLocaleChange,
+  onMetadataPlatformChange,
+  onMetadataTitleSelect,
+  onMetadataCopyFeedback,
   pathTracerLabEnabled = false,
   pathTracer,
   onSetPathTracerLabEnabled,
   onPatchPathTracer,
+  onOpenSmartStudio,
+  onEnterSmartStudioMode,
+  onOpenCineStudio,
+  onOpenReferenceCameraStudio,
+  visualStyles,
+  styleGallery,
+  onPatchStyleGallery,
+  pmxMaterials = [],
+  highlightMaterial = null,
+  onSelectMaterial,
+  cinematicEngine,
+  vcs,
+  appState,
+  onPatchSceneComposer,
+  onReplaceSceneComposer,
+  onPatchSceneStudio,
 }: FxSettingsPanelProps) {
   const exposure = visualFx.toneExposure ?? 1;
   const vertical = viewportFormat === '9:16';
@@ -112,6 +180,99 @@ export default function FxSettingsPanel({
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {(onOpenCineStudio || onOpenReferenceCameraStudio) ? (
+        <div className="border border-cyan-500/35 rounded-md p-2 space-y-2 bg-cyan-950/20">
+          <div className="text-[10px] font-bold text-cyan-200 flex items-center gap-1">
+            <Clapperboard className="w-3 h-3" />
+            Camera studios
+          </div>
+          <p className="text-[8px] text-zinc-500 leading-relaxed">
+            Cine Studio (VCS) and Reference Camera Studio — open from here, not the viewport bar.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {onOpenCineStudio ? (
+              <button
+                type="button"
+                onClick={onOpenCineStudio}
+                className="w-full text-[9px] font-bold px-2 py-2 rounded border border-cyan-500/40 bg-cyan-600/30 text-cyan-100 hover:bg-cyan-500/40 cursor-pointer"
+              >
+                Открыть Cine Studio
+              </button>
+            ) : null}
+            {onOpenReferenceCameraStudio ? (
+              <button
+                type="button"
+                onClick={onOpenReferenceCameraStudio}
+                className="w-full text-[9px] font-bold px-2 py-2 rounded border border-pink-500/40 bg-pink-600/20 text-pink-100 hover:bg-pink-500/30 cursor-pointer"
+              >
+                Reference Camera Studio
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {appState && onPatchSceneComposer && onReplaceSceneComposer ? (
+        <LightingStudioPanel
+          appState={appState}
+          onSetVisualFx={onSetVisualFx}
+          onPatchComposer={onPatchSceneComposer}
+          onReplaceComposer={onReplaceSceneComposer}
+          onApplyCinematicLighting={vcs ? (id) => vcs.setLighting(id) : undefined}
+          onPatchSceneStudio={onPatchSceneStudio}
+        />
+      ) : null}
+
+      {vcs ? <VcsDirectorPanel api={vcs} compact /> : null}
+      {!vcs && cinematicEngine ? <CinematicPanel api={cinematicEngine} compact /> : null}
+
+      {(onOpenSmartStudio || onEnterSmartStudioMode) && (
+        <div className="border border-violet-500/35 rounded-md p-2 space-y-2 bg-violet-950/20">
+          <div className="text-[10px] font-bold text-violet-200 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" />
+            Smart Studio
+          </div>
+          <p className="text-[8px] text-zinc-500 leading-relaxed">
+            One-click showcase, photo or video — auto camera, lights, FX and framing.
+          </p>
+          <div className="grid grid-cols-3 gap-1">
+            <button
+              type="button"
+              onClick={() =>
+                onEnterSmartStudioMode
+                  ? onEnterSmartStudioMode('showcase')
+                  : onOpenSmartStudio?.()
+              }
+              className="text-[9px] font-bold px-1.5 py-1.5 rounded border border-violet-500/40 bg-violet-600/30 text-violet-100 hover:bg-violet-500/40 cursor-pointer"
+            >
+              Showcase
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onEnterSmartStudioMode
+                  ? onEnterSmartStudioMode('photo')
+                  : onOpenSmartStudio?.()
+              }
+              className="text-[9px] font-bold px-1.5 py-1.5 rounded border border-cyan-500/40 bg-cyan-600/25 text-cyan-100 hover:bg-cyan-500/35 cursor-pointer"
+            >
+              Photo
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onEnterSmartStudioMode
+                  ? onEnterSmartStudioMode('video')
+                  : onOpenSmartStudio?.()
+              }
+              className="text-[9px] font-bold px-1.5 py-1.5 rounded border border-rose-500/40 bg-rose-600/25 text-rose-100 hover:bg-rose-500/35 cursor-pointer"
+            >
+              Video
+            </button>
+          </div>
+        </div>
+      )}
+
       {vertical && (
         <div className="flex items-start gap-2 px-1 py-1.5 rounded-md bg-[#39c5bb]/10 border border-[#39c5bb]/25">
           <Smartphone className="w-3.5 h-3.5 text-[#39c5bb] shrink-0 mt-0.5" />
@@ -121,28 +282,24 @@ export default function FxSettingsPanel({
         </div>
       )}
 
-      <div className="border border-cyan-500/25 rounded-md p-2 space-y-2 bg-cyan-950/15">
-        <div className="text-[10px] font-bold text-cyan-300 flex items-center gap-1">
-          <Sparkles className="w-3 h-3" />
-          MMD RTX Lite (styles)
-        </div>
-        <p className="text-[8px] text-zinc-500 leading-relaxed">
-          Lightweight cinematic presets — no SSAO/TAA/volumetrics, lower GPU load.
-        </p>
-        <div className="flex flex-wrap gap-1">
-          {MMD_RTX_LITE_STYLES.map((style) => (
-            <button
-              key={style.id}
-              type="button"
-              title={style.description}
-              onClick={() => onSetVisualFx(applyMmdRtxLiteStyle(style.id as MmdRtxLiteStyleId))}
-              className="text-[9px] font-bold px-2 py-1 rounded border border-zinc-700 bg-zinc-900/80 text-zinc-300 hover:border-cyan-500/40 hover:text-cyan-200 cursor-pointer transition-all"
-            >
-              {style.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {visualStyles && (
+        <>
+          <ShaderGalleryPanel
+            visualStyles={visualStyles}
+            developerMode={styleGallery?.developerMode}
+          />
+          {styleGallery && onPatchStyleGallery && onSelectMaterial && (
+            <MaterialInspectorPanel
+              materials={pmxMaterials}
+              styleGallery={styleGallery}
+              selectedMaterial={highlightMaterial}
+              onSelectMaterial={onSelectMaterial}
+              onPatchStyleGallery={onPatchStyleGallery}
+              developerMode={styleGallery.developerMode}
+            />
+          )}
+        </>
+      )}
 
       {onSetPathTracerLabEnabled && pathTracer && onPatchPathTracer && (
         <div className="border border-amber-500/30 rounded-md p-2 space-y-2 bg-amber-950/15">
@@ -207,6 +364,29 @@ export default function FxSettingsPanel({
                 step={0.01}
                 onChange={(v) => onPatchPathTracer({ aperture: v })}
               />
+              <div className="border-t border-amber-900/40 pt-2 space-y-1.5">
+                <p className="text-[8px] font-bold uppercase text-[#76b900] m-0">
+                  OIDN AI denoise (local WebGPU)
+                </p>
+                <label className="flex items-center gap-2 text-[9px] text-zinc-400 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pathTracer.oidnEnabled === true}
+                    onChange={(e) => onPatchPathTracer({ oidnEnabled: e.target.checked })}
+                  />
+                  Intel OIDN (bundled rt_ldr weights)
+                </label>
+                {pathTracer.oidnEnabled ? (
+                  <label className="flex items-center gap-2 text-[9px] text-zinc-500 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pathTracer.oidnPreferAi !== false}
+                      onChange={(e) => onPatchPathTracer({ oidnPreferAi: e.target.checked })}
+                    />
+                    Prefer OIDN over compute denoise
+                  </label>
+                ) : null}
+              </div>
             </>
           )}
         </div>
@@ -392,19 +572,95 @@ export default function FxSettingsPanel({
         )}
       </div>
 
+      <LutControls visualFx={visualFx} onSetVisualFx={onSetVisualFx} />
+      <BundledEffectsPanel visualFx={visualFx} onSetVisualFx={onSetVisualFx} />
+
+      <div className="space-y-2 border-t border-zinc-800 pt-2">
+        <div className="text-[9px] font-bold uppercase text-zinc-500 tracking-wide">
+          Render Pipeline
+        </div>
+        <p className="text-[8px] text-zinc-600 leading-relaxed">
+          ASRP (default) adds Silhouette POM depth to materials. Classic keeps MMD toon. RTX Lite
+          stacks POM with probes, AO and bloom.
+        </p>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => {
+              onSetVisualFx({
+                renderMode: 'mmd_fidelity',
+                materialDetailing: true,
+                bloomEnabled: true,
+                bloomIntensity: Math.min(visualFx.bloomIntensity ?? 0.42, 0.38),
+                toneExposure: 0.9,
+                colorGrade: 'anime',
+              });
+              onSetRtxModeEnabled(false);
+            }}
+            className={`flex-1 py-1.5 text-[9px] font-bold rounded border cursor-pointer transition-colors ${
+              visualFx.renderMode === 'mmd_fidelity'
+                ? 'border-pink-500/50 text-pink-200 bg-pink-500/10'
+                : 'border-zinc-700 text-zinc-400 hover:border-pink-500/40'
+            }`}
+          >
+            Classic
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onSetVisualFx({
+                renderMode: 'asrp',
+                materialDetailing: true,
+                colorGrade: 'cinematic',
+              });
+              onSetRtxModeEnabled(false);
+            }}
+            className={`flex-1 py-1.5 text-[9px] font-bold rounded border cursor-pointer transition-colors ${
+              (visualFx.renderMode ?? 'asrp') === 'asrp' ||
+              visualFx.renderMode === 'pbr_cinematic'
+                ? 'border-cyan-500/50 text-cyan-200 bg-cyan-500/10'
+                : 'border-zinc-700 text-zinc-400 hover:border-cyan-500/40'
+            }`}
+          >
+            ASRP
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onSetVisualFx({
+                renderMode: 'asrp',
+                materialDetailing: true,
+                colorGrade: 'cinematic',
+                ssaoEnabled: true,
+                bloomEnabled: true,
+                floorReflection: Math.max(visualFx.floorReflection ?? 0.78, 0.92),
+              });
+              onSetRtxModeEnabled(true);
+            }}
+            className={`flex-1 py-1.5 text-[9px] font-bold rounded border cursor-pointer transition-colors ${
+              rtxModeEnabled
+                ? 'border-violet-500/50 text-violet-200 bg-violet-500/10'
+                : 'border-zinc-700 text-zinc-400 hover:border-violet-500/40'
+            }`}
+          >
+            RTX Lite
+          </button>
+        </div>
+      </div>
+
       <div className="space-y-2 border-t border-zinc-800 pt-2">
         <div className="text-[9px] font-bold uppercase text-zinc-500 tracking-wide">
           Lite EffectComposer (SSAO / SMAA / God Rays)
         </div>
         <p className="text-[8px] text-zinc-600 leading-relaxed">
-          Drag .hdr onto the viewport for IBL. 9:16 — SMAA + vignette only.
+          Drag .hdr onto the viewport for IBL. Drop .cube / .3dl for custom LUT. 9:16 — SMAA + vignette only.
         </p>
         {(
           [
             ['postFxStackEnabled', 'Post-FX stack'],
             ['ssaoEnabled', 'SSAO (half-res)'],
             ['smaaEnabled', 'SMAA (TAA-lite)'],
-            ['godRaysEnabled', 'God rays'],
+            ['godRaysEnabled', 'God rays (unsupported)'],
             ['letterbox239', 'Letterbox 2.39'],
             ['materialDetailing', 'Material detailing'],
             ['vignetteEnabled', 'Vignette'],
@@ -474,7 +730,15 @@ export default function FxSettingsPanel({
           onExportDurationSecChange={onExportDurationSecChange}
           onRenderMp4={onRenderMp4}
           onLiveRecord={onLiveRecord}
+          onCinemaRender={onCinemaRender}
           vertical={vertical}
+          videoMetadata={videoMetadata}
+          showVideoInformation={showVideoInformation}
+          onRegenerateMetadata={onRegenerateMetadata}
+          onMetadataLocaleChange={onMetadataLocaleChange}
+          onMetadataPlatformChange={onMetadataPlatformChange}
+          onMetadataTitleSelect={onMetadataTitleSelect}
+          onMetadataCopyFeedback={onMetadataCopyFeedback}
         />
       )}
 

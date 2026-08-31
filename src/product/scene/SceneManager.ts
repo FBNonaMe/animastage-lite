@@ -6,7 +6,7 @@ import {
   downloadSceneFile,
   parseSceneJson,
 } from './codec';
-import { saveSceneToStorage, loadSceneFromStorage } from './storage';
+import { validateAndSaveScene, loadSceneFromStorage } from './storage';
 
 /**
  * SceneManager — product-layer wrapper that ONLY reads/writes engine state
@@ -51,14 +51,16 @@ export class SceneManager {
 
   saveToFile(name?: string): AnimaStageScene {
     const scene = this.capture(name);
-    saveSceneToStorage(scene);
+    const { appState } = this.bridge.read();
+    validateAndSaveScene(scene, appState);
     downloadSceneFile(scene);
     return scene;
   }
 
   saveLocal(): AnimaStageScene {
     const scene = this.capture();
-    saveSceneToStorage(scene);
+    const { appState } = this.bridge.read();
+    validateAndSaveScene(scene, appState);
     return scene;
   }
 

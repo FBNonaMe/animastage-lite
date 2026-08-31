@@ -29,3 +29,5 @@ export {
   shouldShowAdvancedSidebar,
 } from './ui';
 export { useProductLayer } from './hooks/useProductLayer';
+export * from './cinematic';
+export * from './vcs';

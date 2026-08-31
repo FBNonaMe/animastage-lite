@@ -1,12 +1,15 @@
 import { Plus, LayoutGrid } from 'lucide-react';
 import FileUploader from '../FileUploader';
 import DemoGalleryPanel from '../gallery/DemoGalleryPanel';
-import type { ProcessedMMDFiles } from '../../utils/mmdFiles';
+import type { ProcessedMMDFiles, ProcessedVmdFiles } from '../../utils/mmdFiles';
 import { Button, Panel } from '../UI';
 
 interface LoadSectionProps {
   onLoadModel: (preset: 'miku' | 'kizuna' | 'custom') => void;
   onLoadCustomModel: (data: ProcessedMMDFiles) => void;
+  attachVmdTargetModelId?: string | null;
+  onAttachVmd?: (modelId: string, vmd: ProcessedVmdFiles) => void;
+  onInstallStylePack?: (files: File[]) => void | Promise<void>;
   onLoadDemo?: (demoId: string) => void;
   onOpenDemoGallery?: () => void;
   demoLoadingId?: string | null;
@@ -16,6 +19,9 @@ interface LoadSectionProps {
 export default function LoadSection({
   onLoadModel,
   onLoadCustomModel,
+  attachVmdTargetModelId = null,
+  onAttachVmd,
+  onInstallStylePack,
   onLoadDemo,
   onOpenDemoGallery,
   demoLoadingId = null,
@@ -43,7 +49,12 @@ export default function LoadSection({
         <p className="text-[var(--font-size-sm)] font-medium text-[var(--color-text-main)] m-0 mb-[var(--space-sm)]">
           Import folder or ZIP
         </p>
-        <FileUploader onModelLoaded={onLoadCustomModel} />
+        <FileUploader
+          onModelLoaded={onLoadCustomModel}
+          attachVmdTargetModelId={attachVmdTargetModelId}
+          onAttachVmd={onAttachVmd}
+          onInstallStylePack={onInstallStylePack}
+        />
       </Panel>
 
       {onLoadDemo ? (

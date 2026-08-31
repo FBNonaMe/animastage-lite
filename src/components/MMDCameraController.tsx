@@ -20,6 +20,7 @@ import {
   captureCameraSnapshot,
   evaluateCameraAtFrame,
   isCameraPoseValid,
+  sanitizeCameraSnapshot,
   syncMmdCameraMixerToFrame,
   syncOrbitFromCamera,
 } from './CameraLogic';
@@ -34,7 +35,19 @@ import {
   MAX_POLAR_ANGLE,
   MIN_POLAR_ANGLE,
 } from '../utils/cameraFollow';
-import { isRecordingCapture } from '../video/recordingCapture';
+import { isRecordingCapture, isCinemaRenderCapture, getFrozenCaptureCamera, setFrozenCaptureCamera, recordingCaptureState } from '../video/recordingCapture';
+import { applyHandheldOffset } from '../product/cinematic/camera/handheld';
+import {
+  clampCameraAboveFloor,
+  resolveCameraCollision,
+} from '../product/cinematic/camera/collision';
+import { constrainToSafeVolume } from '../product/vcs/camera/safeVolume';
+import type { CharacterProfile } from '../product/vcs/types';
+import {
+  cinemaOrbitDamping,
+  cinemaPlaybackDamp,
+  DEFAULT_CINEMA_CAMERA_MOTION,
+} from '../cinematicRender/cinemaCamera';
 
 const DEFAULT_ORBIT_TARGET = new THREE.Vector3(0, 10, 0);
 const FALLBACK_CAMERA: CameraSnapshot = {
@@ -45,6 +58,7 @@ const FALLBACK_CAMERA: CameraSnapshot = {
 };
 
 const MMD_PLAYBACK_DAMP = 0.28;
+/** Exact keyframe pose during offline / Cinema export — never lag a frame. */
 const MMD_RECORD_DAMP = 1;
 
 type CameraHelperObjects = {
@@ -66,6 +80,8 @@ interface MMDCameraControllerProps {
   followModelId?: string | null;
   autoFocus?: boolean;
   manualCameraLock?: boolean;
+  /** Paused MMD + camera track — orbit to place keys without fighting playback. */
+  cameraTrackEditing?: boolean;
   focusTarget?: CameraFocusTarget;
   cameraOrbitAnchor?: [number, number, number];
   currentFrame: number;
@@ -77,6 +93,21 @@ interface MMDCameraControllerProps {
   onCaptureReady?: (capture: () => CameraSnapshot | null) => void;
   onFlyToReady?: (fly: (snapshot: CameraSnapshot) => void) => void;
   onCameraModeExit?: (snapshot: CameraSnapshot) => void;
+  cinematicHandheld?: boolean;
+  cinematicCollision?: boolean;
+  vcsSafeCamera?: boolean;
+  vcsProfile?: CharacterProfile | null;
+  /** Cinematic Camera 2.0 — framing / portrait / constraints from Reference Camera Studio. */
+  cinematicEvalOpts?: {
+    constraints?: import('../referenceCamera/types').CameraConstraintId[];
+    framing?: import('../referenceCamera/types').FramingModeId;
+    minDistance?: number;
+    maxDistance?: number;
+    viewportFormat?: import('../types').ViewportFormat;
+    subject?: [number, number, number];
+    subjectHeight?: number;
+    stabilizeMotion?: boolean;
+  };
 }
 
 function MMDCameraControllerInner({
@@ -85,6 +116,7 @@ function MMDCameraControllerInner({
   followModelId = null,
   autoFocus = true,
   manualCameraLock = false,
+  cameraTrackEditing = false,
   focusTarget = 'body',
   cameraOrbitAnchor = [0, 10, 0],
   currentFrame,
@@ -96,6 +128,11 @@ function MMDCameraControllerInner({
   onCaptureReady,
   onFlyToReady,
   onCameraModeExit,
+  cinematicHandheld = false,
+  cinematicCollision = false,
+  vcsSafeCamera = false,
+  vcsProfile = null,
+  cinematicEvalOpts,
 }: MMDCameraControllerProps) {
   const { camera } = useThree();
   const perspectiveCamera = camera as THREE.PerspectiveCamera;
@@ -112,7 +149,13 @@ function MMDCameraControllerInner({
   const hasCameraVmdRef = useRef(hasCameraVmd);
   const autoFocusRef = useRef(autoFocus);
   const manualLockRef = useRef(manualCameraLock);
+  const cameraEditingRef = useRef(cameraTrackEditing);
   const anchorRef = useRef(cameraOrbitAnchor);
+  const cinematicHandheldRef = useRef(cinematicHandheld);
+  const cinematicCollisionRef = useRef(cinematicCollision);
+  const vcsSafeCameraRef = useRef(vcsSafeCamera);
+  const vcsProfileRef = useRef(vcsProfile);
+  const cinematicEvalOptsRef = useRef(cinematicEvalOpts);
   const prevCameraModeRef = useRef<CameraMode>(cameraMode);
   const lastAppliedFrameRef = useRef(-1);
   const wasPlayingCameraRef = useRef(false);
@@ -124,7 +167,12 @@ function MMDCameraControllerInner({
   const focusScratch = useRef(new THREE.Vector3(0, 10, 0));
 
   const orbitEnabled =
-    cameraMode === 'free' || (cameraMode === 'mmd' && manualCameraLock);
+    cameraMode === 'free' ||
+    (cameraMode === 'mmd' && (manualCameraLock || cameraTrackEditing));
+
+  useEffect(() => {
+    cameraEditingRef.current = cameraTrackEditing;
+  }, [cameraTrackEditing]);
 
   useEffect(() => {
     smoothPosition.current.copy(perspectiveCamera.position);
@@ -135,6 +183,19 @@ function MMDCameraControllerInner({
     }
     goalPosition.current.copy(smoothPosition.current);
     goalTarget.current.copy(smoothTarget.current);
+  }, []);
+
+  // Seed orbit target once after mount (avoid controlled target prop resets).
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      const orbit = orbitRef.current;
+      if (!orbit) return;
+      if (orbit.target.lengthSq() < 1e-8) {
+        orbit.target.copy(DEFAULT_ORBIT_TARGET);
+        orbit.update();
+      }
+    });
+    return () => cancelAnimationFrame(id);
   }, []);
 
   useEffect(() => {
@@ -148,6 +209,31 @@ function MMDCameraControllerInner({
   useEffect(() => {
     anchorRef.current = cameraOrbitAnchor;
   }, [cameraOrbitAnchor]);
+
+  useEffect(() => {
+    cinematicHandheldRef.current = cinematicHandheld;
+  }, [cinematicHandheld]);
+
+  useEffect(() => {
+    cinematicCollisionRef.current = cinematicCollision;
+  }, [cinematicCollision]);
+
+  useEffect(() => {
+    vcsSafeCameraRef.current = vcsSafeCamera;
+  }, [vcsSafeCamera]);
+
+  useEffect(() => {
+    vcsProfileRef.current = vcsProfile;
+  }, [vcsProfile]);
+
+  useEffect(() => {
+    cinematicEvalOptsRef.current = cinematicEvalOpts;
+  }, [cinematicEvalOpts]);
+
+  const applyVcsSafety = useCallback((snapshot: CameraSnapshot): CameraSnapshot => {
+    if (!vcsSafeCameraRef.current) return snapshot;
+    return constrainToSafeVolume(snapshot, vcsProfileRef.current).snapshot;
+  }, []);
 
   useEffect(() => {
     if (cameraMode !== 'mmd') return;
@@ -290,11 +376,62 @@ function MMDCameraControllerInner({
     prevCameraModeRef.current = cameraMode;
   }, [cameraMode, onCameraModeExit, perspectiveCamera]);
 
+  useEffect(() => {
+    if (!cameraTrackEditing || isPlaying || hasCameraVmd) return;
+    // Never scrub-fly while encoding — that snapped the live framing to keys.
+    if (isRecordingCapture()) return;
+    const evaluated = evaluateCameraAtFrame(
+      cameraKeyframes,
+      currentFrame,
+      FALLBACK_CAMERA
+    );
+    flyTo(evaluated);
+  }, [cameraTrackEditing, currentFrame, cameraKeyframes, hasCameraVmd, isPlaying, flyTo]);
+
   useFrame((_, delta) => {
     if (!(perspectiveCamera instanceof THREE.PerspectiveCamera)) return;
 
     const mode = cameraModeRef.current;
-    const frame = isPlayingRef.current ? playheadRef.current : currentFrameRef.current;
+    const capturing = isRecordingCapture();
+    const orbit = orbitRef.current;
+    const lookTarget = orbit?.target ?? DEFAULT_ORBIT_TARGET;
+
+    // Freeze / hold the live viewport camera for free mode, MY CAM lock, or any
+    // export that should not be driven by the Camera Track.
+    // Live (interactive) keeps orbit free so the user can reframe while recording.
+    const preferLiveCamera =
+      capturing &&
+      (mode === 'free' ||
+        manualLockRef.current ||
+        cameraEditingRef.current ||
+        (!hasCameraVmdRef.current && cameraKeyframesRef.current.length === 0));
+
+    if (preferLiveCamera) {
+      const helper = helperRef.current as CameraHelperWithObjects | null;
+      if (helper) helper.enable('cameraAnimation', false);
+
+      if (recordingCaptureState.interactive) {
+        // Live: leave the Three camera alone — OrbitControls stay in charge.
+        return;
+      }
+
+      let frozen = getFrozenCaptureCamera();
+      if (!frozen) {
+        frozen = captureCameraSnapshot(perspectiveCamera, lookTarget);
+        setFrozenCaptureCamera(frozen);
+      } else {
+        applyCameraSnapshot(perspectiveCamera, frozen);
+        if (orbit?.target) {
+          orbit.target.set(frozen.target[0], frozen.target[1], frozen.target[2]);
+        }
+      }
+      return;
+    }
+
+    const frame =
+      isPlayingRef.current || capturing
+        ? Math.floor(playheadRef.current)
+        : currentFrameRef.current;
     const fps = MMD_FPS;
     const time = frameToTime(frame, fps);
     const helper = helperRef.current as CameraHelperWithObjects | null;
@@ -304,7 +441,8 @@ function MMDCameraControllerInner({
       return;
     }
 
-    if (manualLockRef.current) {
+    // MY CAM / track edit outside capture (already handled above while capturing).
+    if (manualLockRef.current || cameraEditingRef.current) {
       if (helper) helper.enable('cameraAnimation', false);
       return;
     }
@@ -313,19 +451,21 @@ function MMDCameraControllerInner({
       ? cameraFollow.getHeadTarget(DEFAULT_ORBIT_TARGET, focusScratch.current)
       : focusScratch.current.copy(DEFAULT_ORBIT_TARGET);
 
+    const cinemaExport = isCinemaRenderCapture();
     const hasCameraMotion =
       (hasCameraVmdRef.current && vmdReadyRef.current) ||
       cameraKeyframesRef.current.length > 0;
 
     if (!hasCameraMotion) {
       if (helper) helper.enable('cameraAnimation', false);
+      if (capturing) return;
       if (autoFocusRef.current) {
         const snap = offsetCameraSnapshotToFocus(
           FALLBACK_CAMERA,
           anchorRef.current,
           focus
         );
-        const damp = isRecordingCapture() ? MMD_RECORD_DAMP : CAMERA_DAMP_FACTOR;
+        const damp = cinemaPlaybackDamp(DEFAULT_CINEMA_CAMERA_MOTION.weight, CAMERA_DAMP_FACTOR);
         applyCameraSnapshotDamped(
           perspectiveCamera,
           snap,
@@ -341,12 +481,19 @@ function MMDCameraControllerInner({
     }
 
     const useVmd = hasCameraVmdRef.current && vmdReadyRef.current && helper?.camera;
-    const capturing = isRecordingCapture();
     const damp = capturing
       ? MMD_RECORD_DAMP
       : isPlayingRef.current
-        ? MMD_PLAYBACK_DAMP
+        ? cinemaPlaybackDamp(
+            DEFAULT_CINEMA_CAMERA_MOTION.weight,
+            cinematicEvalOptsRef.current?.stabilizeMotion !== false
+              ? Math.min(MMD_PLAYBACK_DAMP, 0.22)
+              : MMD_PLAYBACK_DAMP
+          )
         : CAMERA_DAMP_FACTOR;
+
+    // Cinema export: no handheld jitter — stable cinematic frames.
+    const allowHandheld = cinematicHandheldRef.current && !cinemaExport;
 
     if (useVmd && helper) {
       helper.enable('cameraAnimation', true);
@@ -389,16 +536,47 @@ function MMDCameraControllerInner({
 
     if (helper) helper.enable('cameraAnimation', false);
 
+    const evalOpts = cinematicEvalOptsRef.current;
+    const subject =
+      evalOpts?.subject ??
+      ([focus.x, focus.y, focus.z] as [number, number, number]);
     const evaluated = evaluateCameraAtFrame(
       cameraKeyframesRef.current,
       frame,
-      FALLBACK_CAMERA
+      FALLBACK_CAMERA,
+      evalOpts
+        ? {
+            constraints: evalOpts.constraints,
+            framing: evalOpts.framing,
+            minDistance: evalOpts.minDistance,
+            maxDistance: evalOpts.maxDistance,
+            viewportFormat: evalOpts.viewportFormat,
+            subject,
+            subjectHeight: evalOpts.subjectHeight,
+          }
+        : undefined
     );
     evaluated.fov = computeDuoFovBoost(evaluated.fov, cameraFraming);
 
-    const snapshot = autoFocusRef.current
-      ? offsetCameraSnapshotToFocus(evaluated, anchorRef.current, focus)
-      : evaluated;
+    let processed = evaluated;
+    // Always soft-collide when cinematic eval opts request it, or legacy flag
+    if (cinematicCollisionRef.current || evalOpts?.constraints?.includes('avoid_collision')) {
+      const minDist =
+        evalOpts?.minDistance ?? (vcsProfileRef.current?.safeCameraRadius ?? 6) * 0.55;
+      processed = resolveCameraCollision(processed, minDist);
+      processed = clampCameraAboveFloor(processed);
+    }
+    processed = applyVcsSafety(processed);
+    if (allowHandheld) {
+      processed = applyHandheldOffset(processed, time, 0.28, 0.55);
+    }
+
+    processed = sanitizeCameraSnapshot(processed);
+
+    const snapshot =
+      autoFocusRef.current && cameraKeyframesRef.current.length === 0
+        ? offsetCameraSnapshotToFocus(processed, anchorRef.current, focus)
+        : processed;
 
     if (capturing || damp >= 1) {
       applyCameraSnapshot(perspectiveCamera, snapshot);
@@ -435,8 +613,9 @@ function MMDCameraControllerInner({
       makeDefault
       enabled={orbitEnabled}
       enableDamping
-      dampingFactor={0.05}
-      target={[DEFAULT_ORBIT_TARGET.x, DEFAULT_ORBIT_TARGET.y, DEFAULT_ORBIT_TARGET.z]}
+      dampingFactor={cinemaOrbitDamping(DEFAULT_CINEMA_CAMERA_MOTION.weight)}
+      // Do NOT pass a fresh `target={[...]}` every render — React remounts of
+      // parent state (e.g. starting MP4) would snap the orbit back to default.
       minDistance={2}
       maxDistance={120}
       enableRotate
@@ -456,7 +635,8 @@ export default function MMDCameraController(props: MMDCameraControllerProps) {
   const followEnabled =
     props.cameraMode === 'mmd' &&
     props.autoFocus !== false &&
-    !props.manualCameraLock;
+    !props.manualCameraLock &&
+    !props.cameraTrackEditing;
 
   return (
     <CameraFollowProvider

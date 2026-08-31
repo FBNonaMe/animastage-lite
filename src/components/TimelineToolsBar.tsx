@@ -37,11 +37,11 @@ export default function TimelineToolsBar({
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   return (
-    <div className="flex items-center gap-1.5 min-w-min">
+    <div className="flex items-center gap-1 min-w-min">
       <button
         type="button"
         onClick={onToggleApplyMode}
-        className={`cursor-pointer text-[10px] font-bold border rounded px-2 py-1.5 flex items-center gap-1 transition-all shrink-0 ${
+        className={`cursor-pointer text-[10px] font-bold border rounded px-1.5 py-1 flex items-center gap-1 transition-all shrink-0 ${
           applyMode === 'merge'
             ? 'text-teal-200 bg-teal-950/40 border-teal-500/40'
             : 'text-amber-200 bg-amber-950/30 border-amber-500/40'
@@ -53,7 +53,7 @@ export default function TimelineToolsBar({
         }
       >
         <Layers className="w-3 h-3" />
-        {applyMode === 'merge' ? '+ Layer' : 'Replace'}
+        {applyMode === 'merge' ? 'Layer' : 'Replace'}
       </button>
 
       {variant === 'mobile' ? (
@@ -61,7 +61,7 @@ export default function TimelineToolsBar({
           <button
             type="button"
             onClick={() => setMobileSheetOpen(true)}
-            className="cursor-pointer text-[10px] font-bold border rounded px-2.5 py-1.5 flex items-center gap-1.5 transition-all shrink-0 text-teal-200 bg-teal-950/40 border-teal-500/40 hover:bg-teal-950/60"
+            className="cursor-pointer text-[10px] font-bold border rounded px-2 py-1 flex items-center gap-1.5 transition-all shrink-0 text-teal-200 bg-teal-950/40 border-teal-500/40 hover:bg-teal-950/60"
           >
             <Music2 className="w-3.5 h-3.5 text-[#39c5bb]" />
             Templates
@@ -84,40 +84,8 @@ export default function TimelineToolsBar({
             compact
             variant="dance"
             categories={DANCE_PICKER_CATEGORIES}
-            label="Studio"
-            applyMode={applyMode}
-            placement="below"
-          />
-          <TemplatePicker
-            onApplyTemplate={applyWithMode}
-            hasModel={hasModel}
-            hasVmdActive={vmdActive}
-            compact
-            variant="dance"
-            categories={['dance']}
-            label="+ Body"
-            applyMode={applyMode}
-            placement="below"
-          />
-          <TemplatePicker
-            onApplyTemplate={applyWithMode}
-            hasModel={hasModel}
-            hasVmdActive={vmdActive}
-            compact
-            variant="dance"
-            categories={['camera']}
-            label="+ Camera"
-            applyMode={applyMode}
-            placement="below"
-          />
-          <TemplatePicker
-            onApplyTemplate={applyWithMode}
-            hasModel={hasModel}
-            hasVmdActive={vmdActive}
-            compact
-            variant="dance"
-            categories={['combo', 'emote']}
-            label="+ Combo"
+            label="Add"
+            title="Body, camera, combo & emote clips"
             applyMode={applyMode}
             placement="below"
           />
@@ -127,6 +95,8 @@ export default function TimelineToolsBar({
             hasVmdActive={vmdActive}
             compact
             categories={CHARACTER_PICKER_CATEGORIES}
+            label="Pose"
+            title="Character poses & expressions"
             applyMode={applyMode}
             placement="below"
           />
@@ -144,7 +114,7 @@ export default function TimelineToolsBar({
       <button
         type="button"
         onClick={onClearAllKeyframes}
-        className="cursor-pointer text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-700 hover:border-red-500/50 hover:text-red-400 px-2 py-1.5 rounded transition-all shrink-0"
+        className="cursor-pointer text-[10px] font-bold text-zinc-400 bg-zinc-900 border border-zinc-700 hover:border-red-500/50 hover:text-red-400 px-1.5 py-1 rounded transition-all shrink-0"
         title="Remove all camera and model keyframes"
       >
         Clear
@@ -154,11 +124,17 @@ export default function TimelineToolsBar({
         <button
           type="button"
           onClick={onRegisterKeyframe}
-          className="cursor-pointer text-[10px] font-bold text-teal-300 bg-[#39c5bb]/15 border border-[#39c5bb]/40 hover:bg-[#39c5bb]/20 p-1.5 px-2 flex items-center gap-1 rounded transition-all shrink-0"
-          title={isCamera ? 'Register camera keyframe' : 'Register model keyframes'}
+          className="cursor-pointer text-[10px] font-bold text-teal-300 bg-[#39c5bb]/15 border border-[#39c5bb]/40 hover:bg-[#39c5bb]/20 p-1 px-1.5 flex items-center gap-1 rounded transition-all shrink-0"
+          title={
+            isCamera
+              ? 'Register camera keyframe'
+              : vmdActive
+                ? 'Add keyframe and switch to timeline (disables imported VMD)'
+                : 'Register model keyframes'
+          }
         >
           <Key className="w-3.5 h-3.5 text-[#39c5bb]" />
-          {isCamera ? 'Cam Key' : 'Add Key'}
+          {isCamera ? 'Cam' : 'Key'}
         </button>
       )}
     </div>

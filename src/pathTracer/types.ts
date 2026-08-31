@@ -89,6 +89,15 @@ export interface PathTracerRenderSettings {
   sunAzimuth?: number;
 }
 
+export interface PathTracerLabHudStats {
+  spp: number;
+  fps: number;
+  bounces: number;
+  mode: string;
+  triangleCount: number;
+  qualityHint?: string;
+}
+
 export interface PathTracerCaptureOptions {
   camera: PathTracerCamera;
   scene: PathTracerSceneData;

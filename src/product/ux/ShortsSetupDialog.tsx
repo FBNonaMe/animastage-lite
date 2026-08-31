@@ -54,7 +54,7 @@ export default function ShortsSetupDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-3 sm:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] bg-black/70 backdrop-blur-sm">
       <input
         ref={fileInputRef}
         type="file"

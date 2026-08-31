@@ -1,0 +1,23 @@
+{
+  "schema": "animestage.preview-jobs/v1",
+  "jobs": [
+    {
+      "effect": "raycast.ray-mmd.color-grading@1.5.2",
+      "width": 320,
+      "height": 180,
+      "renderer": "isolated-webgl2",
+      "cacheRevision": "ray-color-adapter1",
+      "seed": 1,
+      "isolationRequired": true
+    },
+    {
+      "effect": "raycast.ray-mmd.hdr-bloom@1.5.2",
+      "width": 320,
+      "height": 180,
+      "renderer": "isolated-webgl2",
+      "cacheRevision": "ray-bloom-adapter1",
+      "seed": 1,
+      "isolationRequired": true
+    }
+  ]
+}

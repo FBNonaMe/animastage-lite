@@ -3,6 +3,10 @@
 @import "../styles/design-system.css";
 @import "../styles/mobile-studio.css";
 @import "../styles/pro-mobile.css";
+@import "./uiVersions/studio3/studio3.css";
+@import "./uiVersions/adaptive-studio.css";
+@import "./layout/adaptiveMobile/adaptive-mobile.css";
+@import "./layout/adaptiveMobile/phone-fit.css";
 @import "tailwindcss";
 
 @theme {
@@ -11,7 +15,29 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* Modern Dark Theme Scrollbars */
+html {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  background: #0a0b0e;
+}
+
+/* Clip horizontal bleed only — never lock vertical scroll on marketing pages */
+html:not(.studio-viewport-lock),
+html:not(.studio-viewport-lock) body,
+html:not(.studio-viewport-lock) #root {
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+/* Modern Dark Theme Scrollbars (Chromium + Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2d35 #121418;
+}
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -25,6 +51,9 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #39c5bb;
+}
+::-webkit-scrollbar-corner {
+  background: #121418;
 }
 
 /* Full-height shell: styles/viewport-shell.css */
@@ -144,6 +173,172 @@
   animation: landing-bar-grow 1.5s ease-out infinite alternate;
 }
 
+/* —— One Click Creator wizard —— */
+@keyframes creator-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes creator-glow-breathe {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.85; }
+}
+
+@keyframes creator-step-pop {
+  0% { transform: scale(0.92); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.creator-ambient {
+  background:
+    radial-gradient(ellipse 70% 55% at 8% 8%, rgba(139, 92, 246, 0.14), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 92% 88%, rgba(34, 211, 238, 0.12), transparent 50%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(217, 70, 239, 0.04), transparent 60%);
+}
+
+.creator-panel-surface {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, #12151c 92%, transparent) 0%,
+    color-mix(in srgb, #0a0b0e 96%, transparent) 100%
+  );
+  box-shadow:
+    -24px 0 80px rgba(0, 0, 0, 0.45),
+    inset 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.creator-gradient-line {
+  height: 2px;
+  background: linear-gradient(90deg, #8b5cf6, #d946ef, #22d3ee, #8b5cf6);
+  background-size: 200% 100%;
+  animation: landing-shimmer 6s linear infinite;
+}
+
+.creator-shimmer-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.creator-shimmer-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 65%
+  );
+  animation: landing-shimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.creator-drop-glow {
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.35),
+    0 0 48px rgba(34, 211, 238, 0.18),
+    inset 0 0 32px rgba(34, 211, 238, 0.06);
+}
+
+.creator-fab {
+  animation: creator-float 3.5s ease-in-out infinite;
+}
+
+.creator-step-enter {
+  animation: creator-step-pop 0.35s ease-out both;
+}
+
+.creator-card-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.creator-card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+/* Landing — Codrops long-form scroll */
+html.landing-scroll-root {
+  scroll-behavior: smooth;
+}
+
+.landing-scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  background: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+.landing-scroll-progress__bar {
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #22d3ee, #2dd4bf, #38bdf8);
+  will-change: transform;
+}
+
+.landing-scroll-cue {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 15, 20, 0.75);
+  backdrop-filter: blur(12px);
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, opacity 0.3s;
+}
+
+.landing-scroll-cue:hover {
+  color: #e2e8f0;
+  border-color: rgba(34, 211, 238, 0.35);
+}
+
+.landing-scroll-cue__label {
+  line-height: 1;
+}
+
+.landing-whats-new-glow {
+  background:
+    radial-gradient(ellipse 50% 40% at 20% 0%, rgba(34, 211, 238, 0.08), transparent),
+    radial-gradient(ellipse 40% 35% at 80% 20%, rgba(45, 212, 191, 0.06), transparent);
+}
+
+.landing-flow-scroll {
+  scrollbar-width: thin;
+}
+
+@keyframes landing-reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.landing-reveal {
+  animation: landing-reveal-in 0.55s ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-ken-burns,
   .landing-curve-draw path,
@@ -153,7 +348,20 @@
   .landing-shimmer::after,
   .landing-key-pop,
   .landing-pose-pop,
-  .landing-bar-grow {
+  .landing-bar-grow,
+  .landing-reveal,
+  .creator-gradient-line,
+  .creator-shimmer-btn::after,
+  .creator-fab,
+  .creator-step-enter {
+    animation: none !important;
+  }
+
+  html.landing-scroll-root {
+    scroll-behavior: auto;
+  }
+
+  .landing-scroll-cue .animate-bounce {
     animation: none !important;
   }
 }

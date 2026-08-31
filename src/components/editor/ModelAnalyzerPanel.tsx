@@ -1,9 +1,17 @@
 import { useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, Info, ScanSearch } from 'lucide-react';
 import type { ModelAnalysisReport, AnalyzerSeverity } from '../../analyzer/types';
+import type { UmceReport } from '../../umce';
+import type { ApisReport } from '../../apis';
+import type { CharacterIntelligenceProfile } from '../../cis';
+import ApisDevPanel from '../apis/ApisDevPanel';
+import CisDevInspector from '../cis/CisDevInspector';
 
 interface ModelAnalyzerPanelProps {
   report: ModelAnalysisReport | null | undefined;
+  umceReport?: UmceReport | null;
+  apisReport?: ApisReport | null;
+  cisProfile?: CharacterIntelligenceProfile | null;
   onReanalyze?: () => void;
   analyzing?: boolean;
 }
@@ -20,6 +28,9 @@ function SeverityIcon({ severity }: { severity: AnalyzerSeverity }) {
 
 export default function ModelAnalyzerPanel({
   report,
+  umceReport,
+  apisReport,
+  cisProfile,
   onReanalyze,
   analyzing = false,
 }: ModelAnalyzerPanelProps) {
@@ -81,6 +92,30 @@ export default function ModelAnalyzerPanel({
             </div>
           ))}
         </div>
+
+        {umceReport && (
+          <div className="bg-cyan-500/5 border border-cyan-500/20 rounded px-2 py-1.5 space-y-1">
+            <div className="flex items-center justify-between text-[9px]">
+              <span className="font-bold uppercase text-cyan-300">UMCE Compatibility</span>
+              <span className="font-mono font-bold text-cyan-200">{umceReport.compatibilityPercent}%</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1 text-[8px] text-zinc-400">
+              <span>Rig: {umceReport.formatHint}</span>
+              <span>Mapped: {umceReport.stats.mappedCanonical} bones</span>
+              <span>IK: {umceReport.stats.ikChains} chains</span>
+              <span>Physics: {umceReport.stats.rigidBodies} bodies</span>
+            </div>
+            {umceReport.warnings.length > 0 && (
+              <div className="text-[8px] text-amber-400/90 truncate" title={umceReport.warnings.join('; ')}>
+                {umceReport.warnings[0]}
+              </div>
+            )}
+          </div>
+        )}
+
+        {cisProfile && import.meta.env.DEV ? <CisDevInspector profile={cisProfile} /> : null}
+
+        {apisReport && import.meta.env.DEV && !cisProfile ? <ApisDevPanel report={apisReport} /> : null}
 
         {!hasErrors && sortedIssues.length === 0 && (
           <div className="flex items-center gap-2 text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-1.5">

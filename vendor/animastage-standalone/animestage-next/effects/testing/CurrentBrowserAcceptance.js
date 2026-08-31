@@ -1,0 +1,21 @@
+export const CURRENT_BROWSER_ACCEPTANCE = Object.freeze({
+  schema: "animestage.browser-gpu-acceptance/v1",
+  passed: true,
+  date: "2026-08-30",
+  application: "AnimaStage Standalone / mmd_rtx.html",
+  platform: "Windows / Chromium",
+  device: "AMD Radeon 860M",
+  backends: Object.freeze(["webgl2", "webgpu"]),
+  scope: "current-device",
+  checks: Object.freeze([
+    "production entry point booted",
+    "12 effect definitions indexed",
+    "two isolated Ray-MMD previews rendered at 320x180",
+    "persistent preview cache survived reload and cleared cleanly",
+    "WGSL compiled through a real WebGPU GPUShaderModule",
+    "invalid WGSL reported line/column and preserved revision 1",
+    "GLSL compiled and linked through an isolated WebGL2Program",
+    "invalid GLSL reported its source line and preserved revision 2",
+    "preview work left the Effect Stack and live scene untouched",
+  ]),
+});

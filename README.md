@@ -1,23 +1,23 @@
 <p align="center">
   <a href="https://animastage-lite.app/app">
-    <img src="docs/images/studio-screenshot.png" alt="AnimaStage Lite — browser MMD studio" width="900"/>
+    <img src="docs/images/studio-ui3-update.png" alt="AnimaStage Lite — UI 3.0 Studio with Scene Studio 2.0, FX panel, and timeline" width="960"/>
   </a>
 </p>
 
-<h1 align="center">⚡ AnimaStage — Browser-Native MMD Studio</h1>
+<h1 align="center">⚡ AnimaStage Lite — Browser MMD Studio</h1>
 
 <p align="center">
   <b>Full MMD production in the browser. No install. No Windows lock-in. Just a tab.</b><br>
-  <i>PMX · VMD · Timeline · Bullet Physics · MP4 Export · Shorts-Ready 9:16</i>
+  <i>PMX · VMD · UI 3.0 · Scene Studio · Cinematic FX · Timeline · Bullet Physics · MP4 / Shorts</i>
 </p>
 
 <p align="center">
-  <a href="https://github.com/FBNonaMe/animastage-lite"><img src="https://img.shields.io/badge/Lite-1.0.0-blue" alt="Lite 1.0"/></a>
+  <a href="https://github.com/FBNonaMe/animastage-lite"><img src="https://img.shields.io/badge/Lite-1.4.0-blue" alt="Lite 1.4.0"/></a>
   <a href="https://github.com/gtausa197-svg/AnimaStage-Pro"><img src="https://img.shields.io/badge/Pro-5.0%2B-purple" alt="Pro 5.0+"/></a>
+  <img src="https://img.shields.io/badge/UI-3.0%20Studio-cyan" alt="UI 3.0"/>
   <img src="https://img.shields.io/badge/Renderer-WebGL%202.0%20%2B%20Three.js-orange" alt="WebGL2"/>
   <img src="https://img.shields.io/badge/Physics-Bullet%20WASM-green" alt="Physics"/>
   <img src="https://img.shields.io/badge/Export-WebCodecs%20MP4-red" alt="Export"/>
-  <img src="https://img.shields.io/badge/Format-PMX%20%2F%20PMD%20%2F%20VMD-purple" alt="Format"/>
   <img src="https://img.shields.io/badge/Shorts-9%3A16%20Ready-ff69b4" alt="Shorts"/>
   <a href="https://animastage-lite.app"><img src="https://img.shields.io/badge/🌐-Lite%20Demo-blue" alt="Lite Demo"/></a>
   <a href="https://animastagepro.dev/"><img src="https://img.shields.io/badge/🎬-Pro%20Demo-violet" alt="Pro Demo"/></a>
@@ -30,237 +30,153 @@
 
 ---
 
-## 🎬 What is AnimaStage?
+## 🎬 What is AnimaStage Lite?
 
-**AnimaStage** is a browser-native **MikuMikuDance** workflow — load PMX/PMD models and VMD motion, tune lighting and physics, edit on a timeline, and export video without desktop MMD or DirectX.
+**AnimaStage Lite** is a browser-native **MikuMikuDance** studio — load PMX/PMD models and VMD motion, build cinematic scenes, edit on a multi-track timeline, tune lighting and post-processing, and export MP4 or vertical Shorts without desktop MMD or DirectX.
 
-We ship **two editions** for different jobs:
+The screenshot above shows **UI 3.0 Studio**: **Scene Studio 2.0** on the left (mood presets, time of day, weather, scene FX stack), the **FX** panel on the right (Lighting Studio, character lighting, cinematic looks), a live **Bloom FX** viewport, morph and bone tracks in the bottom timeline, and the performance HUD (frame ms, FPS, CPU/GPU split, bottleneck label).
 
-| | [**AnimaStage Lite**](https://animastage-lite.app) · **this repo** | [**AnimaStage Pro**](https://animastagepro.dev/) · [GitHub](https://github.com/gtausa197-svg/AnimaStage-Pro) |
+| | [**AnimaStage Lite**](https://animastage-lite.app) · **this repo** | [**AnimaStage Pro**](https://animastagepro.dev/) |
 |---|---|---|
-| **Focus** | Fast preview · Shorts / Reels / TikTok | Full cinematic production |
-| **Live** | [animastage-lite.app](https://animastage-lite.app) · [Studio `/app`](https://animastage-lite.app/app) | [animastagepro.dev/](https://animastagepro.dev/) |
-| **Source** | [FBNonaMe/animastage-lite](https://github.com/FBNonaMe/animastage-lite) | [gtausa197-svg/AnimaStage-Pro](https://github.com/gtausa197-svg/AnimaStage-Pro) |
-| **Stack** | React 19 · Vite · R3F · TypeScript | WebGL EffectComposer pipeline |
-| **Renderer** | WebGL 2.0, DPR 1× in 9:16 Lite | Full post-FX stack (SSAO, DOF, volumetrics, bloom) |
-| **Physics** | Bullet WASM, presets | Bullet WASM, deep manual tuning |
-| **Timeline** | VMD dopesheet, **Bézier curves**, VMD export | Dual timeline (VMD + cinematic camera) |
-| **Characters** | Single scene focus | Multi-character, independent VMD per char |
-| **Bone editor** | Root / bone gizmos, morph tracks | Full G/R/S bone editor in viewport |
-| **Camera** | Bookmarks, 9:16, letterbox | Spline path, keyframes, track lock |
-| **Export** | WebCodecs MP4 HQ + Live | WebCodecs + frame-by-frame HQ render |
-| **Extra (Lite app)** | **Demo Gallery**, **Pose Library**, **Model Analyzer**, mocap, AI keys, collab, anim layers | Scene editor, session JSON, weather presets |
-| **Target** | Creators, low-spec machines | Studios, production teams |
-
-> **Note:** In the Lite app, **Sidebar → Advanced** means *optional Lite modules* (mocap, AI, collab, layers) — not the separate **AnimaStage Pro** product.
-
-**Lite idea:** ~80% visual impact at ~40% GPU load vs heavy desktop pipelines — ideal when stability and vertical export matter most.
+| **Focus** | Fast preview · Shorts / Reels / TikTok · full studio in a tab | Full cinematic production |
+| **Live** | [animastage-lite.app/app](https://animastage-lite.app/app) | [animastagepro.dev](https://animastagepro.dev/) |
+| **Stack** | React 19 · Vite · R3F · TypeScript · UI 3.0 | WebGL EffectComposer pipeline |
+| **Target** | Creators, phones, low-spec machines | Studios, production teams |
 
 ---
 
-## 🆕 Recent updates (changelog)
+## 🆕 What's new in 1.4.0
 
-### 31 May — 2 Jun 2026 (detailed)
+### UI 3.0 Studio
 
-Day-by-day log: **[docs/CHANGELOG_2026-05-31_2026-06-02.md](docs/CHANGELOG_2026-05-31_2026-06-02.md)** · Public post: **[docs/PRODUCT_UPDATE_2026-05-31_2026-06-02.md](docs/PRODUCT_UPDATE_2026-05-31_2026-06-02.md)**
+A redesigned studio shell built for cinematic workflows:
 
-| Date | Highlights |
-|------|------------|
-| **31 May** | **2–4 characters** per ZIP/folder drop · motion auto-assigned · **FPS + triangle** HUD · duo camera groundwork |
-| **1 Jun** | **Product layer**: save/share, `/viewer`, templates ~50s, onboarding, beginner mode, stability |
-| **2 Jun** | **Generate Short** (keeps VMD, custom length) · camera **follows** models on export · **Manual** MMD orbit · reliable **MP4** |
-| **Jun 2026** | **UI/UX overhaul** · design system · stable perf HUD · empty viewport state · Android **v1.1.0** landscape |
+- **Scene Studio 2.0** — mood presets (Clear Day, Sunset, Golden Hour, Night, Rain, Snow, Cyberpunk, Anime, Classic MMD, and more), **Time of day** slider, **Weather** selector, and a **Scene FX Stack** (rain, snow, mist, fireworks, aura, god rays, speed lines, confetti, and other stackable scene effects).
+- **FX tab** — **Lighting Studio** (exposure, sun intensity, ambient, temperature, draggable sun direction), **Character Lighting** presets, **Cinematic Looks**, and integrated post-processing controls.
+- **Camera studios** — Origami Cine Studio, Reference Camera Studio, **Showcase (Orbit + Wave)** mode, aspect ratio presets (**16:9**, **9:16**, **1:1**, **4:3**, **21:9**).
+- **Bottom timeline** — **Timeline**, **Effects**, **Dopesheet**, and **Curves** tabs; morph tracks, bone rotation keys, camera track, playback controls, and keyframe count.
+- **Performance HUD** — smoothed frame ms, rolling FPS, CPU/GPU estimate, Smooth/Okay/Lagging status, and bottleneck label (bottom-right of viewport).
 
-### UI & UX overhaul (Jun 2026)
+### Cinematic FX stack
 
-Studio polish for creators — cleaner layout, consistent controls, and performance info you can trust.
+Advanced post-processing passes wired into the live viewport — toggle and tune from the **FX** panel:
 
-| Area | Change | Where in app |
-|------|--------|--------------|
-| **Design system** | Shared tokens (colors, spacing, radius, type) + reusable **Button**, **Panel**, **Select**, **Toggle**, **Slider**, **SectionHeader**, **CollapsibleSection** | `styles/design-system.css` · `src/components/UI/` |
-| **Production UI** | `DEBUG_UI = false` — hides dev overlays (ROOT/GIZMO HUD, detailed perf panel, auto-scale debug line) | `src/config/debugUi.ts` |
-| **Studio flow bar** | Save / Share / Generate Short with design-system buttons | Top **Studio flow bar** |
-| **Sidebar structure** | Modular sections: **Load** · **Scene** · **Controls** · **Advanced** (Pro modules) | Left sidebar |
-| **Empty viewport** | Centered **Add your first character** card with **Try demo scene** — replaces floating drag-drop modal | Viewport (no model loaded) |
-| **Copy & tone** | Removed emoji clutter and internal dev wording from studio + landing | App-wide |
-| **Stable perf HUD** | **Frame ms** primary (not noisy FPS) · rolling 60-frame average · **CPU / GPU** estimate · **Smooth / Okay / Lagging** · bottleneck label | Bottom-right viewport |
-| **Perf toasts** | “Optimizing for your device” and camera hints **auto-hide after ~2.5 s** | Top center · top-right hints |
-| **ZIP import** | Recursive archives, macOS junk skipped, clearer errors for PMX/PMD inside nested folders | Drag-drop · **File** upload |
-| **Android app** | **v1.2.0** — full studio in WebView, **portrait** lock, Pro Mobile UI, **~20 MB** APK | Landing **`#android`** · [app-debug.apk](/app-debug.apk) |
+| Pass | What it does |
+|------|----------------|
+| **HDR Bloom** | High-dynamic-range bloom with threshold, intensity, and radius control |
+| **Color Grading** | Lift / gamma / gain style grade with exposure and saturation |
+| **SSR** | Screen-space reflections on glossy surfaces |
+| **Vignette** | Edge darkening with roundness and feather |
+| **Lens dispersion** | Radial RGB chromatic shift for cinematic lens character |
+| **SMAA** | Anti-aliasing at the end of the chain |
 
-#### Performance HUD (updated)
+Passes compose in order: ambient occlusion → SSR → bloom → depth of field → grade → lens → vignette → SMAA. When cinematic bloom, vignette, or lens are active, they replace the built-in equivalents for a consistent look.
 
-| Metric | Meaning |
-|--------|---------|
-| **Frame** | Smoothed frame time (ms) — primary metric; &gt;16.7 ms ≈ below 60 FPS, &gt;33 ms ≈ below 30 FPS |
-| **FPS** | Secondary; 60-frame rolling average, capped at 120 (no 900 FPS spikes) |
-| **CPU / GPU** | Lightweight split: JS/update phase vs render gap (no heavy GPU profiling) |
-| **Status** | **Balanced** · **CPU bottleneck** · **GPU bottleneck** |
-| **Level** | **Smooth** · **Okay** · **Lagging** (from smoothed frame time) |
+### Anime NPR render mode
 
-Auto quality: sustained frame time &gt;25 ms nudges resolution/FX down; stable &lt;16 ms slowly recovers.
+Switch the character render pipeline to **Anime NPR** — a stylized non-photoreal shading mode for clean anime-style characters. Enable from the FX panel; works alongside scene lighting and post-FX.
 
-Key files: `src/perf/stableFps.ts` · `src/perf/frameCpuGpuTiming.ts` · `src/components/ViewportPerfMonitor.tsx`
+### Path Tracer Lab
 
-### 31 May — Import & performance (details)
+Experimental path-traced preview overlay for still-quality lighting exploration:
 
-| Feature | Description | Where in app |
-|---------|-------------|--------------|
-| **Multi-character import** | Up to **4** PMX/PMD from one drop, folder, or ZIP; VMD split across models | Drag-drop · **File** upload |
-| **Import formats** | PMX, PMD, VMD, textures, HDR in one bundle (ZIP supported) | Same upload flow |
-| **Performance HUD** | Smoothed **frame ms**, **FPS**, **CPU/GPU** split, bottleneck + **Smooth/Okay/Lagging** | Bottom-right of viewport |
+- Adjustable samples, bounces, and resolution
+- Adaptive quality governor driven by viewport FPS
+- **OIDN AI denoise** — optional neural denoising for cleaner results at lower sample counts
+- Scene fingerprinting to avoid redundant re-renders
 
-### June 2026 — Product layer, Shorts, camera & export
+Open from **FX → Path Tracer Lab**.
 
-| Feature | Description | Where in app |
-|---------|-------------|--------------|
-| **Product layer** | Save/share, templates (~50s), scene graph, onboarding, quality modes — **without** changing VMD/physics/render core | Top **Studio flow bar** · `src/product/` |
-| **Generate Short** | 9:16 vertical, keeps character **VMD**, performance FX, optional duration **20–90s** | **Generate Short** → **Short settings** dialog |
-| **Shorts setup** | Per-character **VMD picker**, **Add VMD…**, presets 15/30/50/60/90 s | Dialog before generate |
-| **Shorts preview bar** | Auto frame · Manual/Free cam · Share · Export | Top overlay after generate |
-| **Stage auto-follow** | Camera tracks 1–2 characters in **Free** mode; **snap** while recording/export | Viewport (with Auto focus on) |
-| **MMD camera follow** | Orbit templates move **with** characters (`cameraOrbitAnchor`); VMD cam looks at body, not hand bone | **MMD** mode + emote/dance templates |
-| **Manual MMD camera** | Orbit the scene yourself in MMD mode | Viewport **MMD → Manual** or Camera Studio |
-| **Viewer + fork** | Read-only `/viewer`, **Edit this** opens editor with scene | `/viewer?scene=…` |
-| **MP4 export hardening** | `VideoFrame.close()`, encoder reclaim recovery, fewer GC stalls | FX → Video · Shorts export |
-| **Docs** | Dev changelog · public post · GPT architecture report | [CHANGELOG](docs/CHANGELOG_2026-05-31_2026-06-02.md) · [PRODUCT_UPDATE](docs/PRODUCT_UPDATE_2026-05-31_2026-06-02.md) · [GPT report](docs/GPT_ANALYSIS_REPORT.md) |
+### Director Workflow
 
-### Earlier — editor, landing, SEO
+Plan and edit full performances without leaving the studio:
 
-| Feature | Description | Where in app |
-|---------|-------------|--------------|
-| **Demo Gallery** | One-click demo scenes (Dance / VTuber / Cinematic) | Sidebar → **Scene** · `/app?demo=party-dance` |
-| **Pose Library** | Presets + capture + JSON import/export (pause only) | Sidebar → **Controls** |
-| **Model Analyzer** | PMX health / performance report | Sidebar → **Edit** |
-| **Curve Editor** | Bézier timeline tracks (`curveMath.ts`) | Timeline → **Curves** |
-| **Landing** | Hero, demo grid, FAQ, JSON-LD | `/` |
-| **SEO / deploy** | IndexNow, `sitemap.xml`, `vercel.json` SPA rewrites | `public/` |
+- **Scene Director** — CAST (characters), CLIPS (shot list), MUSIC (audio sync), SCENE (environment)
+- **Effect Timeline** — stack scene effects on a dedicated track with in/out windows
+- **Effect Curve Editor** — animate effect parameters over time with keyframes
+- **Global undo / redo** — scene director state participates in document-level undo
 
-### Updated (stability & UI)
+### Pose Library — Smart presets
 
-| Area | Change |
-|------|--------|
-| **React** | Product hooks use refs/stable signatures; `ProductShortsFlow` isolates shorts UI state (no update loops). |
-| **Post-FX** | Deferred EffectComposer; SSAO/god rays off in Shorts path; safer WebGL ready checks. |
-| **Performance** | Analyzer debounce; collab sync decoupled from full `models` array; stable frame-time HUD + auto quality nudge. |
-| **UI/UX** | Design system (`styles/design-system.css`), modular sidebar, viewport empty state, `DEBUG_UI` off for production, auto-dismiss hints. |
+The **Pose Library** now includes **Smart** IK-style presets (neutral, action, wave, sit, dance-ready, and more) alongside built-in and custom saved poses. Apply while paused; capture and export JSON poses as before.
 
-### New / notable paths
+### Dynamic Sky & Environment Studio
 
-```
-styles/design-system.css        # Design tokens + .ds-* primitives
-src/components/UI/              # Button, Panel, Select, Toggle, Slider, …
-src/components/sidebar/         # LoadSection, SceneSection, ControlsSection, AdvancedSection
-src/components/viewport/ViewportEmptyState.tsx
-src/config/debugUi.ts           # DEBUG_UI flag (false in production)
-src/hooks/useAutoDismiss.ts     # 2.5s toast auto-hide
-src/perf/stableFps.ts           # Rolling-average FPS / frame ms
-src/perf/frameCpuGpuTiming.ts   # Lightweight CPU vs GPU split
-src/perf/stablePerfResponse.ts  # Auto resolution / FX nudge from frame time
-src/utils/assetImport.ts        # Multi-PMX / ZIP import (recursive archives)
-src/utils/sceneStats.ts         # Triangle count (debug HUD)
-src/components/ViewportPerfMonitor.tsx
-src/product/                    # Product layer (scene, share, templates, shorts, camera, ux)
-src/scene/cameraFocus.ts        # Face/body/full focus + orbit offset for templates
-src/scene/cameraFraming.ts      # Solo/duo stage framing
-src/scene/characterHeadRegistry.ts
-src/components/MMDCameraController.tsx
-src/product/camera/StageAutoFollow.tsx
-src/product/shorts/applyShortsPipeline.ts
-src/product/ux/ShortsSetupDialog.tsx
-src/video/mmdVideoRecorder.ts   # WebCodecs reclaim-safe export
-src/pages/ViewerPage.tsx
-android/                        # Capacitor APK (portrait v1.2.0)
-docs/GPT_ANALYSIS_REPORT.md     # Report for GPT / code analysis
-```
+Continuous **24-hour sky** with time-of-day slider, weather presets, fog, clouds, and exposure — synced with scene lighting and mood presets. **Environment Studio** drives outdoor looks; **Scene Studio** mood buttons apply full-scene atmosphere in one click.
 
-### Not changed (by design)
+### AI & motion capture
 
-- Bullet / Ammo physics pipeline, `mmdFrameLoop`, VMD playback evaluation  
-- Core PMX load / skinning / morph solver internals  
+| Module | Description |
+|--------|-------------|
+| **OpenRouter AI** | One API key for the studio; free-model catalog only; connection test in settings |
+| **WHAM Video→Motion** | Capture motion from video with keyframe export and BVH output (local MediaPipe or optional server) |
+
+### Mobile & Android 1.4.0
+
+- **CapCut-style home dock** — assets, timeline, camera, FX, render, and more on a bottom panel
+- Quiet home viewport; camera modes in a dedicated sheet; bone Move / Rotate without overlap
+- **targetSdk 36** (Google Play requirement)
+- Clearer errors for legacy glTF 1.0 GLB imports
+- Camera, bone edit, and mobile stability fixes
 
 ---
 
-## 🏆 Key numbers (Lite)
-
-| Metric | Value |
-|--------|-------|
-| Formats | PMX, PMD, VMD, textures, HDR |
-| Vertical export | **1080×1920** (9:16) |
-| Physics | Ammo.js (Bullet), ~65 Hz, 3 substeps |
-| Post-FX | RTX Lite — bloom, DOF, weather, SSAO-lite |
-| Clean capture | No gizmos / grid in export |
-
----
-
-## ✨ AnimaStage Lite — features (this repository)
+## ✨ Core features
 
 <details open>
-<summary><b>Click to expand Lite feature list</b></summary>
+<summary><b>Full Lite feature list</b></summary>
 
-### Scene and models
-- Drag & drop `.pmx` / `.pmd`, textures, multiple `.vmd`, HDR
-- Presets or your own model · bone & root gizmos · morphs
+### Import & models
+- Drag & drop PMX, PMD, VMD, textures, HDR; ZIP and folder import (up to 4 characters)
+- Bone & root gizmos · morph tracks · material editor
 
-### Motion and physics
+### Motion & physics
 - VMD playback · Bullet cloth (`anytime` / `playtime` / `off`) · wind · IK
+- **WHAM** video mocap · animation layers (Advanced)
 
-### Camera and framing
-- **Free** orbit (auto-follow 1–2 chars) & **MMD** director (VMD / timeline keyframes / emote orbit)
-- **Manual** orbit in MMD mode · **Generate Short** with custom duration · **9:16** export
+### Camera & framing
+- **Free** orbit with auto-follow · **MMD** director (VMD / timeline / emote orbit)
+- **Manual** orbit · **Generate Short** (20–90 s, custom VMD per character)
+- Aspect ratios: 16:9, 9:16, 1:1, 4:3, 21:9
 
-### Visual (RTX Lite)
-- Style presets · weather · bloom · DOF · vignette · HDR IBL
+### Visual
+- **Scene Studio 2.0** moods · **Dynamic Sky** · **Lighting Studio**
+- RTX Lite baseline (bloom, DOF, weather, SSAO-lite) + **Cinematic FX** stack
+- **Anime NPR** render mode · **Path Tracer Lab**
 
 ### Animation editor
-- **Dopesheet** & **Curves** (Bézier handles, draggable keys) · **VMD export** · undo/redo · mirror / stretch
+- **Dopesheet** & **Curves** (Bézier handles) · **VMD export** · undo/redo · mirror / stretch
+- **Effect Timeline** & **Effect Curve Editor** (Director Workflow)
 
-### Editor tools (Sidebar)
-| Module | Tab | Purpose |
-|--------|-----|---------|
-| **Load** | Load | Import PMX/PMD/VMD, ZIP/folder drop |
-| **Demo Gallery** | Scene | Instant demo scenes — dance, VTuber, cinematic |
-| **Pose Library** | Controls | Presets, capture pose, JSON import/export |
-| **Model Analyzer** | Controls / Edit | Texture/performance report after PMX load |
-| **Bone / Materials** | Controls / Edit | PMX hierarchy, material highlight |
+### Editor tools
+| Module | Purpose |
+|--------|---------|
+| **Demo Gallery** | One-click demo scenes (dance, VTuber, cinematic) |
+| **Pose Library** | Built-in, Smart, custom capture, JSON import/export |
+| **Model Analyzer** | PMX health / performance report |
+| **Scene Director** | Cast, clips, music, scene FX planning |
 
-### Studio UI
-- **Design system** — consistent buttons, panels, spacing (`styles/design-system.css`)
-- **Empty viewport** — centered onboarding card + **Try demo scene**
-- **Performance HUD** — frame ms, FPS, CPU/GPU estimate, Smooth/Okay/Lagging, bottleneck
-- **Hints** — perf and camera tips fade after ~2.5 s (non-blocking)
+### Shorts & sharing
+- **Generate Short** — 9:16 vertical, VMD picker, preview bar, MP4 export
+- **Share** — read-only viewer link · fork into editor
+- WebCodecs MP4 HQ + Live recording · clean capture (no gizmos in export)
 
-### Sidebar → Advanced (Lite Pro modules)
+### Optional Advanced modules
 | Module | Purpose |
 |--------|---------|
 | Animation layers | Weighted overlays, bone mask, solo/mute |
-| Mocap | Video → keys (MediaPipe) |
-| AI motion | Gemini keyframes (optional `VITE_GEMINI_API_KEY`) |
+| OpenRouter AI | Text / motion assistance (free models) |
 | Collab | Local tabs or WebRTC |
-
-### Shorts & sharing (product layer)
-- **Generate Short** — dialog: duration, VMD per character, then 9:16 preview bar
-- **Share** — viewer link (read-only) · **fork** into editor
-- **Scene templates** — ~50s rolls, camera + bloom emotes (MMD mode)
-
-### Video
-- **MP4 HQ** — WebCodecs + mp4-muxer (Chrome / Edge), encoder reclaim recovery
-- **Live** — MediaRecorder · clean frame · **1080×1920** in 9:16
 
 </details>
 
-### What Pro adds ([demo](https://animastagepro.dev/) · [repo](https://github.com/gtausa197-svg/AnimaStage-Pro))
+### What Pro adds
 
-- Multi-character scenes with per-character VMD  
-- Full bone animation editor (G/R/S, mirror, anatomy limits)  
-- Cinematic camera spline + dual timeline  
-- Full RTX-style composer (SSAO → DOF → volumetric → bloom → grade)  
-- Scene outliner, session save/load JSON  
-- See the [Pro demo](https://animastagepro.dev/) and [Pro repository](https://github.com/gtausa197-svg/AnimaStage-Pro) for the full pipeline  
+Multi-character scenes with per-character VMD, full bone G/R/S editor, cinematic camera spline, dual timeline, and a heavier RTX-style composer — see [animastagepro.dev](https://animastagepro.dev/) and the [Pro repository](https://github.com/gtausa197-svg/AnimaStage-Pro).
 
 ---
 
-## 🚀 Quick start — AnimaStage Lite
+## 🚀 Quick start
 
 **Try online:** [animastage-lite.app/app](https://animastage-lite.app/app)
 
@@ -275,109 +191,81 @@ npm run dev
 
 | URL | Page |
 |-----|------|
-| `http://localhost:3000/` | Landing (demo grid, conversion CTAs) |
-| `http://localhost:3000/app` | Studio |
-| `http://localhost:3000/viewer` | Read-only viewer (+ fork to editor) |
-| `http://localhost:3000/app?demo=party-dance` | Studio — featured demo (auto-play) |
-| `http://localhost:3000/app?demo=gallery` | Studio — full demo gallery overlay |
+| `http://localhost:3000/` | Landing |
+| `http://localhost:3000/app` | Studio (UI 3.0) |
+| `http://localhost:3000/viewer` | Read-only viewer |
+| `http://localhost:3000/app?demo=party-dance` | Demo scene (auto-play) |
 
 ```bash
-npm run indexnow:submit   # optional — ping search engines (IndexNow)
-```
-
-### Android app (download)
-
-Debug APK for sideload: **[app-debug.apk](/app-debug.apk)** (~20 MB) — also linked on the [landing page](https://animastage-lite.app/#android). Build: `npm run build:android`.
-
-**v1.1.0** — opens the full studio in **landscape**, immersive WebView chrome, balanced GPU defaults (same PMX/VMD workflow as the browser).
-
-Rebuild web + APK into `public/`:
-
-```bash
-cd android && gradlew.bat assembleDebug
-cd .. && npm run sync:android:assets && npm run build
-```
-
-```bash
-npm run build    # → dist/
+npm run build      # → dist/
 npm run preview
 npm run lint
+npm run build:android   # Capacitor APK
 ```
 
-**Try a demo first:** open `/app?demo=party-dance` or pick a scene on the landing page.
+**First steps:** open a demo from the landing page or drag PMX + VMD onto the viewport. Pick a **Scene Studio** mood (e.g. Sunset), open **FX** for Lighting Studio and Cinematic FX, then edit keys on the timeline.
 
-**Your files:** drag PMX + VMD onto the viewport or use **File → Load**.
+### Configuration (optional)
 
-### Configuration
-
-Copy [`.env.example`](.env.example) → `.env` (optional, for AI / WebRTC collab):
+Copy [`.env.example`](.env.example) → `.env`:
 
 ```env
-VITE_GEMINI_API_KEY=your_key_from_Google_AI_Studio
+VITE_OPENROUTER_API_KEY=your_key
 # VITE_COLLAB_SIGNALING=wss://your-signaling.example.com
 ```
 
-Get a Gemini key: [Google AI Studio](https://aistudio.google.com/apikey). Restart `npm run dev` after editing `.env`.
+Restart `npm run dev` after editing `.env`. Do not commit real API keys.
 
-> `VITE_*` values are embedded in the client bundle — do not commit real production secrets.
+### Android
+
+Debug APK: **[app-debug.apk](/app-debug.apk)** (~20 MB) · landing [**#android**](https://animastage-lite.app/#android)
+
+**v1.4.0** — CapCut-style dock, Dynamic Sky, OpenRouter, WHAM mocap, portrait-friendly sheets, targetSdk 36.
 
 ---
 
-## 🎮 Lite — UI map
+## 🎮 UI map (1.4.0)
 
 | Task | Where |
 |------|--------|
-| **First launch** | Empty viewport card → **Try demo scene** or drag-drop PMX/ZIP |
-| **Instant demo** | Landing → demo tile · **Sidebar → Scene → Demo Gallery** · `/app?demo=…` |
-| **Generate Short** | Top bar → settings (duration, VMD) → preview bar → Export |
-| Model / VMD | **Sidebar → Load** or drag-drop · **Add VMD** in Short settings |
-| Model health check | **Sidebar → Controls → Model Analyzer** |
-| Poses (paused) | **Sidebar → Controls → Pose Library** |
-| **Performance** | Bottom-right HUD — **Frame ms**, FPS, CPU/GPU, status |
-| **MMD camera manual** | Viewport **MMD → Manual** (orbit; hint auto-hides) |
-| **Emote + bloom** | Dance/motion templates → switches to **MMD** camera |
-| Light, style, weather | **FX** |
-| MP4 / Live | **FX → Video** or Shorts **Export** |
-| Physics | **File** / MMD Lite panel |
-| Timeline, dopesheet, curves | Bottom panel (**Curves** tab) |
-| Save / Share project | Top **Studio flow bar** |
-| Mocap, AI, layers, collab | **Sidebar → Advanced** |
-| 16:9 ↔ 9:16 | Viewport format toggle |
-| Free ↔ MMD camera | Viewport **Free** / **MMD** toggle |
-| **Android** | Landing **`#android`** · portrait studio APK (~20 MB) |
+| **Scene mood & weather** | Left panel → **Scene Studio 2.0** |
+| **Scene FX stack** | Scene Studio → effect buttons (rain, aura, god rays, …) |
+| **Lighting & post-FX** | Right panel → **FX** tab |
+| **Cinematic FX passes** | FX → bundled effects (bloom, grade, SSR, vignette, lens) |
+| **Anime NPR** | FX → render mode |
+| **Path Tracer Lab** | FX → path tracer + OIDN toggle |
+| **Director Workflow** | Templates / Director tabs → CAST, CLIPS, MUSIC, SCENE |
+| **Effect timeline** | Bottom → **Effects** tab |
+| **Morph / bone keys** | Bottom → **Timeline** / **Dopesheet** / **Curves** |
+| **Generate Short** | Top bar → duration & VMD → 9:16 export |
+| **Pose Library** | Sidebar → Controls (Smart presets included) |
+| **Performance HUD** | Bottom-right viewport |
+| **OpenRouter / WHAM** | Settings · Advanced |
+| **Dynamic Sky** | Environment Studio · Scene Studio time slider |
 
 ---
 
-## 🏗️ Lite — project structure
+## 🏗️ Project structure
 
 | Path | Role |
 |------|------|
-| `styles/design-system.css` | Design tokens + shared `.ds-*` styles |
-| `src/components/UI/` | Reusable Button, Panel, Select, Toggle, Slider, … |
-| `src/components/sidebar/` | Load / Scene / Controls / Advanced sections |
-| `src/components/viewport/ViewportEmptyState.tsx` | Empty viewport onboarding card |
-| `src/config/debugUi.ts` | `DEBUG_UI` — dev overlays off in production |
-| `src/App.tsx` | App state, product layer, shorts, collab, recording |
-| `src/RootRouter.tsx` | `/` landing · `/app` studio · `/viewer` |
-| `src/product/` | Templates, shorts, share, scene I/O, camera UX (see [`docs/GPT_ANALYSIS_REPORT.md`](docs/GPT_ANALYSIS_REPORT.md)) |
-| `src/product/hooks/useProductLayer.ts` | Save, share, Generate Short, templates, camera lock |
-| `src/perf/stableFps.ts` | Smoothed frame time + FPS for HUD |
-| `src/components/MMDModelWrapper.tsx` | PMX, VMD, physics, layers, pose hold |
-| `src/pages/LandingPage.tsx` | Marketing landing (conversion-optimized, Android `#android`) |
-| `src/pages/landing/` | Hero mockup, demo grid, conversion bridge, flow diagram |
-| `src/demos/` | Demo catalog, `loadDemoPack`, instant scene apply |
-| `src/components/gallery/` | Demo gallery UI (panel + overlay) |
-| `src/pose/` | Pose library presets, storage, apply to mesh |
-| `src/analyzer/` | PMX analysis and validation reports |
-| `src/editor/` | Dopesheet, `curveMath`, VMD export |
-| `src/hooks/useEditorDocument.ts` | Undo, PMX metadata, analyzer debounce |
-| `src/video/` | MP4 HQ / Live, clean capture |
-| `src/mocap/` · `src/ai/` · `src/collab/` | Optional Pro panel modules |
-| `src/utils/mmdCharacterPhysics.ts` | Bullet / MMD physics |
-| `public/demos/` | Demo thumbnails + optional PMX packs |
-| `public/vercel.json` | SPA rewrites for `/app`, sitemap |
+| `src/uiVersions/studio3/` | UI 3.0 shell, tool routing |
+| `src/components/sceneStudio/` | Scene Studio 2.0 panel |
+| `src/sceneStudio/` | Mood presets, shot states, FX stack |
+| `src/dynamicSky/` | 24h sky, weather, apply look |
+| `src/postfx/` | Cinematic FX passes (bloom, grade, SSR, vignette, lens) |
+| `src/components/standaloneEffects/` | Cinematic FX settings panel, presets |
+| `src/render/animeNpr/` | Anime NPR bridge & runtime |
+| `src/pathTracer/` | Path Tracer Lab, OIDN, adaptive quality |
+| `src/sceneDirector/` | Director workflow, effect registry, keyframes |
+| `src/pose/smartPosePresets.ts` | Smart Pose Library presets |
+| `src/editor/globalUndo.ts` | Document-level undo including director state |
+| `src/product/` | Shorts, share, templates, camera UX |
+| `src/components/ViewportPerfMonitor.tsx` | Performance HUD |
+| `android/` | Capacitor Android shell |
+| `docs/images/studio-ui3-update.png` | UI 3.0 screenshot (this README) |
 
-Docs: [docs/ANIMASTAGE_LITE.md](docs/ANIMASTAGE_LITE.md) · [docs/DEMO_GALLERY.md](docs/DEMO_GALLERY.md) · [docs/CHANGELOG_2026-05-31_2026-06-02.md](docs/CHANGELOG_2026-05-31_2026-06-02.md) · [docs/GPT_ANALYSIS_REPORT.md](docs/GPT_ANALYSIS_REPORT.md) · [SECURITY.md](SECURITY.md)
+Further docs: [docs/ANIMASTAGE_LITE.md](docs/ANIMASTAGE_LITE.md) · [docs/DEMO_GALLERY.md](docs/DEMO_GALLERY.md) · [SECURITY.md](SECURITY.md)
 
 ---
 
@@ -387,8 +275,23 @@ Docs: [docs/ANIMASTAGE_LITE.md](docs/ANIMASTAGE_LITE.md) · [docs/DEMO_GALLERY.m
 |---------|-------------|
 | Core app | WebGL2 (Chrome, Edge, Firefox, Safari) |
 | MP4 HQ | WebCodecs H.264 (best: Chrome / Edge) |
-| AI motion | Gemini API key in `.env` |
+| Path Tracer Lab | Discrete GPU recommended |
+| OIDN denoise | WebAssembly; falls back gracefully if unavailable |
+| OpenRouter AI | API key in `.env` |
 | Heavy PMX | Discrete GPU; use **9:16 Lite** on weak PCs |
+
+---
+
+## 🏆 Key numbers
+
+| Metric | Value |
+|--------|-------|
+| Version | **1.4.0** (Android versionCode 9) |
+| Formats | PMX, PMD, VMD, textures, HDR, GLB (glTF 2.0) |
+| Vertical export | **1080×1920** (9:16) |
+| Physics | Ammo.js (Bullet), ~65 Hz, 3 substeps |
+| Post-FX | RTX Lite + Cinematic FX stack + optional Path Tracer |
+| Timeline | Morph, bone, camera, effect tracks with Bézier curves |
 
 ---
 
@@ -397,9 +300,9 @@ Docs: [docs/ANIMASTAGE_LITE.md](docs/ANIMASTAGE_LITE.md) · [docs/DEMO_GALLERY.m
 | Edition | Website | Repository |
 |---------|---------|------------|
 | **Lite** | [animastage-lite.app](https://animastage-lite.app) | [github.com/FBNonaMe/animastage-lite](https://github.com/FBNonaMe/animastage-lite) |
-| **Pro** | [animastagepro.dev/](https://animastagepro.dev/) | [github.com/gtausa197-svg/AnimaStage-Pro](https://github.com/gtausa197-svg/AnimaStage-Pro) |
+| **Pro** | [animastagepro.dev](https://animastagepro.dev/) | [github.com/gtausa197-svg/AnimaStage-Pro](https://github.com/gtausa197-svg/AnimaStage-Pro) |
 
-Contributions welcome on **Lite** — issues and PRs on GitHub.
+Contributions welcome — issues and PRs on GitHub.
 
 ---
 
@@ -418,20 +321,18 @@ Contributions welcome on **Lite** — issues and PRs on GitHub.
 
 ## 📝 License and content
 
-Open-source **AnimaStage Lite** — see `LICENSE` in this repository (if present) and third-party licenses in `package.json`.
+Open-source **AnimaStage Lite** — see `LICENSE` in this repository and third-party notices in `package.json`.
 
 **MMD models, motions, and textures** belong to their authors. Use only content you have rights to publish and record.
 
-**AnimaStage Pro** is a separate project — [animastagepro.dev/](https://animastagepro.dev/) · [source](https://github.com/gtausa197-svg/AnimaStage-Pro) · see Pro `LICENSE` for terms.
+**AnimaStage Pro** is a separate project — [animastagepro.dev](https://animastagepro.dev/) · [source](https://github.com/gtausa197-svg/AnimaStage-Pro).
 
 ---
 
 <p align="center">
-  <i>🎬 "Drop the PMX. Hit play. No install required."</i><br><br>
+  <i>🎬 Drop the PMX. Build the scene. Hit play. No install required.</i><br><br>
   <a href="https://animastage-lite.app/app"><b>AnimaStage Lite</b></a>
   &nbsp;·&nbsp;
-  <a href="https://animastagepro.dev/"><b>AnimaStage Pro</b></a>
-  &nbsp;·&nbsp;
-  <a href="https://github.com/gtausa197-svg/AnimaStage-Pro">Pro on GitHub</a><br>
-  <code>animastage-lite@1.0.0</code>
+  <a href="https://animastagepro.dev/"><b>AnimaStage Pro</b></a><br>
+  <code>animastage-lite@1.4.0</code>
 </p>

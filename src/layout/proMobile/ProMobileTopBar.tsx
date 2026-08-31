@@ -16,7 +16,14 @@ export default function ProMobileTopBar({
   shareBusy = false,
 }: ProMobileTopBarProps) {
   return (
-    <header className="pro-topbar shrink-0 z-[45] flex items-center gap-2 min-h-12 px-3">
+    <header
+      className="pro-topbar shrink-0 z-[45] flex items-center gap-2 min-h-12 px-3"
+      style={{
+        paddingTop: 'max(0.35rem, env(safe-area-inset-top, 0px))',
+        paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
+        paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
+      }}
+    >
       <button
         type="button"
         onClick={onMenu}

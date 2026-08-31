@@ -1,10 +1,21 @@
 import * as THREE from 'three';
-import type { CameraKeyframe, CameraSnapshot } from '../types';
+import type { CameraKeyframe, CameraSnapshot, ViewportFormat } from '../types';
 import { frameToTime, seekAnimationMixer } from '../utils/animationSync';
 import { CAMERA_DAMP_FACTOR } from '../utils/cameraFollow';
+import { orbitCameraSnapshot } from '../templates/animationTemplates';
+import { evaluateCinematicCameraAtFrame } from '../referenceCamera/cinematicInterp';
+import {
+  applyFramingConstraints,
+  type FramingModeId,
+} from '../referenceCamera/framing';
+import type { CameraConstraintId } from '../referenceCamera/types';
 
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
+const STAGE_FLOOR_Y = 0.6;
+const MIN_SHOWCASE_DISTANCE = 14;
+const MIN_CAMERA_HEIGHT = STAGE_FLOOR_Y + 1.4;
+const MIN_ORBIT_PITCH_DEG = 4;
 
 function createCameraKeyframeId(): string {
   return `cam_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -39,15 +50,100 @@ export function addCameraKeyframe(
   frame: number,
   snapshot: CameraSnapshot
 ): CameraKeyframe[] {
+  const safe = sanitizeCameraSnapshot(snapshot);
   const next = keyframes.filter((kf) => kf.frame !== frame);
   next.push({
     id: createCameraKeyframeId(),
     frame,
-    position: [...snapshot.position],
-    rotation: [...snapshot.rotation],
-    fov: snapshot.fov,
+    position: [...safe.position],
+    rotation: [...safe.rotation],
+    fov: safe.fov,
+    target: [...safe.target],
   });
   return next.sort((a, b) => a.frame - b.frame);
+}
+
+/** Prevent worm-eye / floor clips — keeps full-body framing. */
+export function sanitizeCameraSnapshot(
+  snapshot: CameraSnapshot,
+  opts?: { minDistance?: number; floorY?: number }
+): CameraSnapshot {
+  const floorY = opts?.floorY ?? STAGE_FLOOR_Y;
+  const minDistance = opts?.minDistance ?? MIN_SHOWCASE_DISTANCE;
+
+  let target: [number, number, number] = [...snapshot.target];
+  let position: [number, number, number] = [...snapshot.position];
+  const fov = snapshot.fov;
+
+  let dx = position[0] - target[0];
+  let dy = position[1] - target[1];
+  let dz = position[2] - target[2];
+  let dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+  if (dist < minDistance && dist > 1e-6) {
+    const scale = minDistance / dist;
+    position = [target[0] + dx * scale, target[1] + dy * scale, target[2] + dz * scale];
+    dx *= scale;
+    dy *= scale;
+    dz *= scale;
+    dist = minDistance;
+  }
+
+  if (position[1] < MIN_CAMERA_HEIGHT) {
+    const yawDeg = Math.atan2(dx, dz) * RAD2DEG;
+    const pitchDeg = Math.max(
+      MIN_ORBIT_PITCH_DEG,
+      Math.asin(Math.max(-1, Math.min(1, dy / Math.max(dist, minDistance)))) * RAD2DEG
+    );
+    const safeDist = Math.max(dist, minDistance);
+    const rebuilt = orbitCameraSnapshot(safeDist, yawDeg, pitchDeg, fov, target);
+    return rebuilt;
+  }
+
+  if (position[1] < floorY + 0.5) {
+    const yawDeg = Math.atan2(dx, dz) * RAD2DEG;
+    const safeDist = Math.max(dist, minDistance);
+    return orbitCameraSnapshot(safeDist, yawDeg, MIN_ORBIT_PITCH_DEG, fov, target);
+  }
+
+  return { position, rotation: [...snapshot.rotation], fov, target };
+}
+
+function targetFromRotation(
+  position: [number, number, number],
+  rotation: [number, number, number]
+): [number, number, number] {
+  const euler = new THREE.Euler(
+    rotation[0] * DEG2RAD,
+    rotation[1] * DEG2RAD,
+    rotation[2] * DEG2RAD,
+    'YXZ'
+  );
+  const dir = new THREE.Vector3(0, 0, -1).applyEuler(euler).normalize();
+  const lookDist = 18;
+  return [
+    position[0] + dir.x * lookDist,
+    position[1] + dir.y * lookDist,
+    position[2] + dir.z * lookDist,
+  ];
+}
+
+export function sanitizeCameraKeyframes(keyframes: CameraKeyframe[]): CameraKeyframe[] {
+  return keyframes.map((kf) => {
+    const snap = sanitizeCameraSnapshot({
+      position: kf.position,
+      rotation: kf.rotation,
+      fov: kf.fov,
+      target: kf.target ?? [0, 10, 0],
+    });
+    return {
+      ...kf,
+      position: snap.position,
+      rotation: snap.rotation,
+      fov: snap.fov,
+      target: snap.target,
+    };
+  });
 }
 
 export function deleteCameraKeyframe(keyframes: CameraKeyframe[], frame: number): CameraKeyframe[] {
@@ -93,63 +189,51 @@ export function captureCameraSnapshot(
   };
 }
 
+function resolveKeyframeTarget(
+  kf: CameraKeyframe,
+  fallback: [number, number, number]
+): [number, number, number] {
+  if (kf.target) return [...kf.target];
+  return targetFromRotation(kf.position, kf.rotation);
+}
+
+function snapshotFromKeyframe(kf: CameraKeyframe, fallback: CameraSnapshot): CameraSnapshot {
+  return sanitizeCameraSnapshot({
+    position: [...kf.position],
+    rotation: [...kf.rotation],
+    fov: kf.fov,
+    target: resolveKeyframeTarget(kf, fallback.target),
+  });
+}
+
 export function evaluateCameraAtFrame(
   keyframes: CameraKeyframe[],
   frame: number,
-  fallback: CameraSnapshot
+  fallback: CameraSnapshot,
+  opts?: {
+    constraints?: CameraConstraintId[];
+    framing?: FramingModeId;
+    minDistance?: number;
+    maxDistance?: number;
+    viewportFormat?: ViewportFormat;
+    subject?: [number, number, number];
+    subjectHeight?: number;
+  }
 ): CameraSnapshot {
-  if (keyframes.length === 0) return fallback;
-
-  const sorted = [...keyframes].sort((a, b) => a.frame - b.frame);
-  const exact = sorted.find((kf) => kf.frame === frame);
-  if (exact) {
-    return {
-      position: [...exact.position],
-      rotation: [...exact.rotation],
-      fov: exact.fov,
-      target: [...fallback.target],
-    };
-  }
-
-  if (frame <= sorted[0].frame) {
-    const first = sorted[0];
-    return {
-      position: [...first.position],
-      rotation: [...first.rotation],
-      fov: first.fov,
-      target: [...fallback.target],
-    };
-  }
-
-  if (frame >= sorted[sorted.length - 1].frame) {
-    const last = sorted[sorted.length - 1];
-    return {
-      position: [...last.position],
-      rotation: [...last.rotation],
-      fov: last.fov,
-      target: [...fallback.target],
-    };
-  }
-
-  let prev = sorted[0];
-  let next = sorted[sorted.length - 1];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    if (frame >= sorted[i].frame && frame <= sorted[i + 1].frame) {
-      prev = sorted[i];
-      next = sorted[i + 1];
-      break;
-    }
-  }
-
-  const range = next.frame - prev.frame;
-  const t = range === 0 ? 0 : (frame - prev.frame) / range;
-
-  return {
-    position: lerpTuple3(prev.position, next.position, t),
-    rotation: lerpTuple3(prev.rotation, next.rotation, t),
-    fov: lerpScalar(prev.fov, next.fov, t),
-    target: [...fallback.target],
-  };
+  const raw = evaluateCinematicCameraAtFrame(keyframes, frame, fallback);
+  const sanitized = sanitizeCameraSnapshot(raw, {
+    minDistance: opts?.minDistance,
+  });
+  if (!opts) return sanitized;
+  return applyFramingConstraints(sanitized, {
+    constraints: opts.constraints ?? ['avoid_ground', 'avoid_collision'],
+    framing: opts.framing ?? 'none',
+    minDistance: opts.minDistance ?? 4,
+    maxDistance: opts.maxDistance ?? 80,
+    viewportFormat: opts.viewportFormat,
+    subject: opts.subject ?? sanitized.target,
+    subjectHeight: opts.subjectHeight,
+  });
 }
 
 /**

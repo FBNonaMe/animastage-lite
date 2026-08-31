@@ -1,0 +1,63 @@
+# AnimaStage Lite — Google Play «Сведения о выпуске» / What's new
+# Version: 1.4.0 (versionCode 10)
+# Paste into Play Console → Release → Release notes (RU + EN below).
+# Limit: 500 characters per language (Play Console).
+
+--- RU (рекомендуется вставить в Play Console) ---
+
+Что нового в 1.4.0
+
+• UI 3.0 Studio — Scene Studio 2.0: настроения, погода, стек сценовых FX
+• Cinematic FX: HDR Bloom, цветокор, SSR, виньетка, lens dispersion
+• Anime NPR и Path Tracer Lab с OIDN-шумоподавлением
+• Director Workflow: cast, клипы, музыка, таймлайн эффектов
+• Smart Pose в Pose Library · WHAM Video→Motion · OpenRouter AI
+• Dynamic Sky · CapCut-style док на Android · targetSdk 36
+• Исправления камеры, костей и стабильности на телефоне
+
+--- EN (optional second locale) ---
+
+What's new in 1.4.0
+
+• UI 3.0 Studio — Scene Studio 2.0 moods, weather, scene FX stack
+• Cinematic FX: HDR bloom, color grade, SSR, vignette, lens dispersion
+• Anime NPR render mode · Path Tracer Lab with OIDN denoise
+• Director Workflow — cast, clips, music, effect timeline
+• Smart Pose presets · WHAM Video→Motion · OpenRouter AI
+• Dynamic Sky · CapCut-style Android dock · targetSdk 36
+• Camera, bone edit, and mobile stability fixes
+
+--- Full changelog (internal / longer listing, not for Play 500-char field) ---
+
+UI 3.0 Studio
+- Redesigned shell: Scene Studio 2.0 left, FX inspector right, multi-tab timeline
+- Mood presets (sunset, rain, cyberpunk, anime, classic MMD…)
+- Scene FX stack: rain, snow, mist, fireworks, god rays, aura, speed lines
+- Aspect ratios 16:9, 9:16, 1:1, 4:3, 21:9 · performance HUD
+
+Cinematic FX
+- HDR Bloom, Color Grading, SSR, Vignette, Lens dispersion, SMAA chain
+- Anime NPR render mode
+- Path Tracer Lab with adaptive quality + OIDN denoise
+
+Director Workflow
+- CAST / CLIPS / MUSIC / SCENE tabs
+- Effect Timeline + Effect Curve Editor
+- Global undo includes director state
+
+Pose & Motion
+- Smart Pose IK-style presets in Pose Library
+- WHAM video mocap (local MediaPipe / optional server)
+
+AI & Environment
+- OpenRouter AI — free models, connection test
+- Dynamic Sky 24h + Environment Studio
+
+Mobile / Android
+- CapCut-style bottom dock (assets, timeline, camera, fx, render, more)
+- Quiet home viewport; camera sheet; bone Move|Rotate
+- compileSdk / targetSdk 36
+- Existing release keystore (webmmd) — same signing key
+
+Import
+- Humanized “Legacy binary / glTF 1.0” load errors

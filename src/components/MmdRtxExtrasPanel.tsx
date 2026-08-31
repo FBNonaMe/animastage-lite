@@ -50,8 +50,19 @@ export default function MmdRtxExtrasPanel({
   }, []);
 
   const persistBookmarks = useCallback((next: CameraBookmark[]) => {
-    setBookmarks(next);
-    saveCameraBookmarks(next);
+    const result = saveCameraBookmarks(next);
+    setBookmarks(result.bookmarks);
+    if (result.message) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('animastage:toast', {
+            detail: { message: result.message, durationMs: 4500 },
+          })
+        );
+      } catch {
+        /* ignore */
+      }
+    }
   }, []);
 
   const handleWeather = (id: WeatherPresetId) => {

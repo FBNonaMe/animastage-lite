@@ -10,7 +10,9 @@ import {
   getAnimHelperObjects,
   getPhysicsAddParams,
   isAmmoPhysicsBroken,
+  markAmmoPhysicsBroken,
 } from './mmdCharacterPhysics';
+import { countMeshRigidBodies, isAmmoOomError } from '../physics/physicsEligibility';
 import { clearAnimMixerState, resetMeshBindPose } from './mmdMotionLite';
 
 type AmmoLib = {
@@ -107,21 +109,44 @@ export function restartMeshPhysics(opts: RestartMeshPhysicsOptions): void {
     animTime = null,
   } = opts;
 
-  disposeMeshPhysics(helper, mesh);
-  try {
-    helper.remove(mesh);
-  } catch {
-    /* not registered */
-  }
+  forceDetachMesh(helper, mesh);
   clearAnimMixerState(helper, mesh);
   resetMeshBindPose(mesh);
 
   const addParams = getPhysicsAddParams(physicsEnabled, undefined, {
     animation: clip ?? undefined,
     animationWarmup: false,
-  }) as Parameters<MMDAnimationHelper['add']>[1];
+  }, countMeshRigidBodies(mesh)) as Parameters<MMDAnimationHelper['add']>[1];
 
-  helper.add(mesh, addParams);
+  try {
+    helper.add(mesh, addParams);
+  } catch (err) {
+    // _addMesh pushes the mesh BEFORE physics setup. If Bullet OOM / setup throws,
+    // the mesh is already registered — must detach before retrying without physics.
+    if (isAmmoOomError(err)) {
+      markAmmoPhysicsBroken(err);
+    }
+    forceDetachMesh(helper, mesh);
+    clearAnimMixerState(helper, mesh);
+    resetMeshBindPose(mesh);
+
+    if (physicsEnabled) {
+      try {
+        helper.add(
+          mesh,
+          getPhysicsAddParams(false, undefined, {
+            animation: clip ?? undefined,
+            animationWarmup: false,
+          }) as Parameters<MMDAnimationHelper['add']>[1]
+        );
+      } catch (err2) {
+        console.warn('[MMD] Physics restart failed (no-physics fallback):', err2);
+        throw err2;
+      }
+    } else {
+      throw err;
+    }
+  }
   applyIkFixOnly(mesh, helper);
 
   const state = getAnimHelperObjects(helper, mesh) as
@@ -160,4 +185,36 @@ export function restartMeshPhysics(opts: RestartMeshPhysicsOptions): void {
   helper.enable('animation', Boolean(clip));
   helper.enable('ik', true);
   helper.enable('grant', true);
+}
+
+/** Remove mesh from helper even if remove() throws or physics dispose left it registered. */
+export function safeRemoveMeshFromHelper(
+  helper: MMDAnimationHelper,
+  mesh: THREE.SkinnedMesh
+): void {
+  forceDetachMesh(helper, mesh);
+}
+
+/** Remove mesh from helper even if remove() throws or physics dispose left it registered. */
+function forceDetachMesh(helper: MMDAnimationHelper, mesh: THREE.SkinnedMesh): void {
+  disposeMeshPhysics(helper, mesh);
+  try {
+    helper.remove(mesh);
+  } catch {
+    /* not registered via public API */
+  }
+  // Belt-and-suspenders: _addMesh can leave the mesh in `meshes` after a failed setup.
+  const meshes = helper.meshes as THREE.SkinnedMesh[];
+  const idx = meshes.indexOf(mesh);
+  if (idx >= 0) {
+    meshes.splice(idx, 1);
+  }
+  const objects = (helper as MMDAnimationHelper & {
+    objects?: { delete?: (m: THREE.SkinnedMesh) => void };
+  }).objects;
+  try {
+    objects?.delete?.(mesh);
+  } catch {
+    /* ignore */
+  }
 }

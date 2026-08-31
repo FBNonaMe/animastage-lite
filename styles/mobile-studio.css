@@ -23,14 +23,14 @@
 
 .studio-mobile-column .studio-viewport-column {
   flex: 1 1 auto;
-  min-height: 60dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .studio-mobile-column #mmd-viewport {
-  flex: 1 1 60dvh;
-  min-height: 60dvh;
+  flex: 1 1 0;
+  min-height: 0;
 }
 
 .studio-mobile-column .studio-viewport-stage {
@@ -63,19 +63,34 @@
   max-height: 100%;
 }
 
-.studio-mobile-column .studio-viewport-stage [data-viewport-format='9:16'] {
-  width: auto !important;
+/*
+ * Phone edit stage must fill the shell — never letterbox 16:9 into a thin strip
+ * with a giant black void below (was the “half screen black” bug).
+ * Export aspect is still tracked in state; framing for encode uses capture size.
+ */
+.studio-mobile-column .studio-viewport-stage [data-viewport-format='9:16'],
+.studio-mobile-column .studio-viewport-stage [data-viewport-format='16:9'],
+.studio-mobile-column .studio-viewport-stage [data-viewport-format='1:1'],
+.studio-mobile-column .studio-viewport-stage [data-viewport-format='4:3'],
+.studio-mobile-column .studio-viewport-stage [data-viewport-format='21:9'] {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
   height: 100% !important;
-  max-height: 100%;
-  aspect-ratio: 9 / 16;
-  margin: 0 auto;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: unset !important;
+  margin: 0 !important;
 }
 
-.studio-mobile-column .studio-viewport-stage [data-viewport-format='16:9'] {
-  aspect-ratio: 16 / 9;
-  width: 100%;
-  height: auto;
-  max-height: 100%;
+.studio-mobile-column .studio-viewport-stage [data-viewport-format] > div {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: unset !important;
 }
 
 /* Landscape phone / native — more desktop-like split */

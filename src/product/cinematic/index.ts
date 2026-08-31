@@ -1,0 +1,15 @@
+export * from './types';
+export { DEFAULT_CINEMATIC_ENGINE } from './types';
+export * from './easing';
+export * from './applyCinematic';
+export { useCinematicEngine, type CinematicEngineBridge, type CinematicEngineApi } from './useCinematicEngine';
+export { generateCinematicCameraPath, pickCinematicModeForMotion } from './camera/pathGenerator';
+export { computeSmartCameraDistance, snapshotWithSmartDistance } from './camera/smartFraming';
+export { applyHandheldOffset } from './camera/handheld';
+export { resolveCameraCollision, clampCameraAboveFloor, applyCompositionOffset } from './camera/collision';
+export { getCinematicLightingPatch, CINEMATIC_LIGHTING_LABELS } from './lighting/presets';
+export { analyzeVisualQuality } from './quality/visualAnalyzer';
+export { applyEffectQualityBudget, resolveEffectQualityLevel, suggestQualityModeFromFps } from './quality/adaptive';
+export { CINEMATIC_EXPORT_PROFILES, resolveExportProfile, pickExportProfileForPlatform } from './export/profiles';
+export { prepareCinematicExport } from './export/prepareExport';
+export { analyzeReferenceVideo, referenceAnalysisToCameraMode } from './reference/analyzer';

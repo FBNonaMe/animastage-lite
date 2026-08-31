@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
-import type { CameraFramingMode, CameraMode } from '../../types';
+import type { CameraFramingMode, CameraMode, ViewportFormat } from '../../types';
 import {
   applyCameraSnapshot,
   applyCameraSnapshotDamped,
@@ -19,16 +19,20 @@ interface StageAutoFollowProps {
   cameraMode: CameraMode;
   framing: CameraFramingMode;
   followModelId: string | null;
+  viewportFormat?: ViewportFormat;
 }
 
 /**
- * Smooth stage framing in free mode (1 or 2 characters). Snaps every frame while recording.
+ * Smooth stage framing in free mode (1 or 2 characters).
+ * During MP4 capture the live framing is frozen — re-snapping every export
+ * frame was wiping the user's orbit / MY CAM composition.
  */
 export default function StageAutoFollow({
   enabled,
   cameraMode,
   framing,
   followModelId,
+  viewportFormat = '16:9',
 }: StageAutoFollowProps) {
   const { camera, controls } = useThree();
   const goalPosition = useRef(new THREE.Vector3());
@@ -38,6 +42,9 @@ export default function StageAutoFollow({
 
   useFrame(() => {
     if (!enabled || cameraMode !== 'free') return;
+    // Keep the pre-export camera — don't auto-reframe while encoding.
+    if (isRecordingCapture()) return;
+
     const cam = camera as THREE.PerspectiveCamera;
     if (!(cam instanceof THREE.PerspectiveCamera)) return;
 
@@ -50,13 +57,12 @@ export default function StageAutoFollow({
     );
 
     const snapshot = hasTarget
-      ? buildFollowCameraSnapshotFromFocus(focus, framing)
-      : buildShortCameraSnapshot(framing);
+      ? buildFollowCameraSnapshotFromFocus(focus, framing, viewportFormat)
+      : buildShortCameraSnapshot(framing, viewportFormat);
 
-    const capturing = isRecordingCapture();
-    const alpha = capturing ? 1 : FOLLOW_ALPHA_PLAYBACK;
+    const alpha = FOLLOW_ALPHA_PLAYBACK;
 
-    if (capturing || alpha >= 1) {
+    if (alpha >= 1) {
       applyCameraSnapshot(cam, snapshot);
       goalPosition.current.set(
         snapshot.position[0],
@@ -76,16 +82,12 @@ export default function StageAutoFollow({
 
     const orbit = controls as OrbitControlsImpl | null;
     if (orbit?.target) {
-      if (capturing) {
-        orbit.target.set(snapshot.target[0], snapshot.target[1], snapshot.target[2]);
-      } else {
-        orbit.target.lerp(goalTarget.current, alpha);
-      }
+      orbit.target.lerp(goalTarget.current, alpha);
       orbit.update();
     }
 
     if (!isCameraPoseValid(cam)) {
-      const safe = buildShortCameraSnapshot(framing);
+      const safe = buildShortCameraSnapshot(framing, viewportFormat);
       applyCameraSnapshot(cam, safe);
       goalPosition.current.set(safe.position[0], safe.position[1], safe.position[2]);
       goalTarget.current.set(safe.target[0], safe.target[1], safe.target[2]);

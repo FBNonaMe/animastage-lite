@@ -76,6 +76,27 @@ export function serializeScene(
       currentFrame: appState.currentFrame,
       mmdLite: { ...appState.mmdLite },
     },
+    studio: {
+      sceneStudio: appState.sceneStudio
+        ? (JSON.parse(JSON.stringify(appState.sceneStudio)) as AppState['sceneStudio'])
+        : undefined,
+      sceneDirector: appState.sceneDirector
+        ? ({
+            ...JSON.parse(JSON.stringify(appState.sceneDirector)),
+            music: {
+              ...(appState.sceneDirector.music ?? {}),
+              blobUrl: null,
+            },
+          } as AppState['sceneDirector'])
+        : undefined,
+      sceneComposer: JSON.parse(
+        JSON.stringify(appState.sceneComposer)
+      ) as AppState['sceneComposer'],
+      dynamicSky: appState.dynamicSky ? { ...appState.dynamicSky } : undefined,
+      sceneBackground: { ...appState.sceneBackground },
+      sceneHdr: { ...appState.sceneHdr },
+    },
+    ...(appState.exportMetadata ? { exportMetadata: appState.exportMetadata } : {}),
   };
 }
 

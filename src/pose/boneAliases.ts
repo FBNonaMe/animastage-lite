@@ -1,13 +1,14 @@
 import * as THREE from 'three';
+import { getAliasesForPoseId } from '../umce/boneDictionary';
 
-/** Shared with timeline / gizmo — maps editor bone ids to PMX names. */
+/** @deprecated Use UMCE boneDictionary — kept for timeline / gizmo compat. */
 export const POSE_BONE_ALIASES: Record<string, string[]> = {
-  head: ['頭', 'head', 'Head', 'HEAD', '頭点'],
-  neck: ['首', 'neck', 'Neck', 'NECK'],
-  spine: ['上半身', '上半身2', 'spine', 'センター', 'center', 'Center'],
-  waist: ['下半身', 'hip', 'Hips', 'hips', 'waist', 'pelvis'],
-  arm_L: ['左肩', '左腕', 'left shoulder', 'LeftShoulder', '左ひじ', '左肘'],
-  arm_R: ['右肩', '右腕', 'right shoulder', 'RightShoulder', '右ひじ', '右肘'],
+  head: getAliasesForPoseId('head'),
+  neck: getAliasesForPoseId('neck'),
+  spine: getAliasesForPoseId('spine'),
+  waist: getAliasesForPoseId('waist'),
+  arm_L: getAliasesForPoseId('arm_L'),
+  arm_R: getAliasesForPoseId('arm_R'),
 };
 
 export const SIMPLIFIED_BONE_IDS = [

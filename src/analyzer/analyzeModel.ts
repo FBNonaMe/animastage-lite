@@ -78,6 +78,19 @@ export async function analyzeModelFromBuffer(
   return validateParsedModel(parsed, { modelFileName: fileName, fileMap });
 }
 
+function isPmxOrPmdFileName(fileName?: string): boolean {
+  if (!fileName) return false;
+  const lower = fileName.toLowerCase();
+  return lower.endsWith('.pmx') || lower.endsWith('.pmd');
+}
+
+/** Binary glTF magic `glTF` — never feed these buffers to mmd-parser. */
+function bufferLooksLikeGltf(buffer: ArrayBuffer): boolean {
+  if (buffer.byteLength < 4) return false;
+  const u8 = new Uint8Array(buffer, 0, 4);
+  return u8[0] === 0x67 && u8[1] === 0x6c && u8[2] === 0x54 && u8[3] === 0x46;
+}
+
 export function analyzeLoadedMesh(
   mesh: THREE.SkinnedMesh,
   options: {
@@ -90,26 +103,34 @@ export function analyzeLoadedMesh(
   const mmd = mesh.geometry.userData.MMD as MmdGeometryUserData | undefined;
   const ikCount = mmd?.iks?.length ?? 0;
 
-  if (options.pmxBuffer && options.modelFileName) {
-    return parseModelBuffer(options.pmxBuffer, options.modelFileName).then((parsed) =>
-      validateParsedModel(parsed, {
-        modelFileName: options.modelFileName,
-        fileMap: options.fileMap,
-        meshVertexCount: vertexCount,
-        meshTriangleCount: triangleCount,
-        ikCount,
-      })
-    );
-  }
-
-  const parsed = summaryFromMesh(mesh);
-  return Promise.resolve(
-    validateParsedModel(parsed, {
+  const fromMesh = () =>
+    validateParsedModel(summaryFromMesh(mesh), {
       modelFileName: options.modelFileName,
       fileMap: options.fileMap,
       meshVertexCount: vertexCount,
       meshTriangleCount: triangleCount,
       ikCount,
-    })
-  );
+    });
+
+  const buf = options.pmxBuffer;
+  if (
+    buf &&
+    options.modelFileName &&
+    isPmxOrPmdFileName(options.modelFileName) &&
+    !bufferLooksLikeGltf(buf)
+  ) {
+    return parseModelBuffer(buf, options.modelFileName)
+      .then((parsed) =>
+        validateParsedModel(parsed, {
+          modelFileName: options.modelFileName,
+          fileMap: options.fileMap,
+          meshVertexCount: vertexCount,
+          meshTriangleCount: triangleCount,
+          ikCount,
+        })
+      )
+      .catch(() => fromMesh());
+  }
+
+  return Promise.resolve(fromMesh());
 }

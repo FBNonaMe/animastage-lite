@@ -1,6 +1,8 @@
 import { Save, FolderOpen, Share2, Smartphone, Gauge, Sparkles, Play, Video } from 'lucide-react';
 import type { StudioUiMode } from '../../flow/types';
 import type { QualityMode } from '../../product/scene/types';
+import type { EditorInterfaceId } from '../../uiVersions';
+import UiVersionSwitcher from '../../uiVersions/UiVersionSwitcher';
 import { DEBUG_UI } from '../../config/debugUi';
 import { Button, cn } from '../UI';
 
@@ -8,6 +10,9 @@ interface StudioFlowBarProps {
   compact?: boolean;
   uiMode: StudioUiMode;
   onUiModeChange: (mode: StudioUiMode) => void;
+  editorInterface: EditorInterfaceId;
+  onEditorInterfaceChange: (id: EditorInterfaceId) => void;
+  onOpenUiComparison?: () => void;
   onSaveProject: () => void;
   onLoadProject: () => void;
   onLoadProjectFile: () => void;
@@ -76,6 +81,9 @@ export default function StudioFlowBar({
   compact = false,
   uiMode,
   onUiModeChange,
+  editorInterface,
+  onEditorInterfaceChange,
+  onOpenUiComparison,
   onSaveProject,
   onLoadProject,
   onLoadProjectFile,
@@ -134,6 +142,17 @@ export default function StudioFlowBar({
           value={uiMode}
           onChange={onUiModeChange}
         />
+
+        <UiVersionSwitcher
+          value={editorInterface}
+          onChange={onEditorInterfaceChange}
+          variant="select"
+        />
+        {onOpenUiComparison ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onOpenUiComparison} title="Compare UI 1.0 and UI 3.0">
+            Compare
+          </Button>
+        ) : null}
 
         <div className="flex items-center gap-[var(--space-sm)]">
           <Gauge className="w-3.5 h-3.5 text-[var(--color-text-muted)] shrink-0" aria-hidden />

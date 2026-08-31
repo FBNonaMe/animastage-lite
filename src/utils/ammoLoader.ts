@@ -136,21 +136,30 @@ function loadAmmoScript(src: string): Promise<void> {
 }
 
 async function initializeAmmoFactory(factory: AmmoFactory): Promise<void> {
-  const ammoLib = await factory({
-    locateFile: (path) => {
-      if (path.endsWith('.wasm')) {
-        return AMMO_WASM_URL;
-      }
-      return path;
-    },
-  });
+  try {
+    const ammoLib = await factory({
+      locateFile: (path) => {
+        if (path.endsWith('.wasm')) {
+          return AMMO_WASM_URL;
+        }
+        return path;
+      },
+    });
 
-  if (!verifyAmmoOnce(ammoLib)) {
-    throw new Error(
-      `Ammo.js WASM failed to initialize. Check that ${AMMO_WASM_URL} is reachable.`
-    );
+    if (!verifyAmmoOnce(ammoLib)) {
+      throw new Error(
+        `Ammo.js WASM failed to initialize. Check that ${AMMO_WASM_URL} is reachable.`
+      );
+    }
+
+    publishAmmoLib(ammoLib);
+    ammoReady = true;
+  } catch (err) {
+    const msg = String((err as Error)?.message ?? err);
+    if (/out of memory|\bOOM\b|Aborted/i.test(msg)) {
+      const { markAmmoPhysicsBroken } = await import('./mmdCharacterPhysics');
+      markAmmoPhysicsBroken(err);
+    }
+    throw err;
   }
-
-  publishAmmoLib(ammoLib);
-  ammoReady = true;
 }

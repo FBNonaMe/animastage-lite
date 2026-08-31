@@ -1,6 +1,11 @@
 import React from 'react';
 import type { ViewportFormat } from '../types';
-import { VIEWPORT_916_HEIGHT, VIEWPORT_916_WIDTH } from '../utils/viewportFormat';
+import {
+  VIEWPORT_916_HEIGHT,
+  VIEWPORT_916_WIDTH,
+  isFramedViewportFormat,
+  viewportAspectCss,
+} from '../utils/viewportFormat';
 import { useStudioLayout } from '../hooks/useStudioLayout';
 
 interface ViewportCanvasShellProps {
@@ -10,56 +15,56 @@ interface ViewportCanvasShellProps {
 }
 
 /**
- * Wraps the R3F canvas: full-bleed in 16:9, fixed portrait frame centered in 9:16.
- * On mobile column layout, height is capped via .studio-viewport-stage (CSS).
+ * Wraps the R3F canvas.
+ * Phone / Pro Mobile: always full-bleed (no 16:9 letterbox void).
+ * Desktop: full-bleed in 16:9, framed preview for other aspects.
  */
 export default function ViewportCanvasShell({
   format,
   children,
   className = '',
 }: ViewportCanvasShellProps) {
-  const { isMobileColumn, isProMobile } = useStudioLayout();
-  const mobileFill = isProMobile;
+  const { isMobileColumn, isProMobile, isMobileLayout } = useStudioLayout();
+  /** Any phone shell — fill the stage; never leave a black letterbox half-screen. */
+  const mobileFill = isProMobile || isMobileLayout || isMobileColumn;
+  const is916 = format === '9:16';
+  const framed = is916 || isFramedViewportFormat(format);
 
-  if (format === '9:16') {
-    return (
-      <div
-        className={`flex-1 flex items-center justify-center min-h-0 overflow-hidden w-full ${
-          mobileFill ? 'absolute inset-0 bg-[#0d0e11]' : 'bg-[#060608]'
-        }`}
-        data-viewport-format="9:16"
-      >
-        <div
-          className={`relative overflow-hidden ${mobileFill ? 'h-full w-auto max-w-full shadow-none ring-0' : 'shrink-0 shadow-[0_0_60px_rgba(57,197,187,0.08)] ring-1 ring-zinc-800/80'} ${className}`}
-          style={
-            mobileFill || isMobileColumn
-              ? { height: '100%', width: 'auto', aspectRatio: '9 / 16', maxHeight: '100%' }
-              : { width: VIEWPORT_916_WIDTH, height: VIEWPORT_916_HEIGHT }
-          }
-        >
-          {children}
-        </div>
-      </div>
-    );
-  }
+  let outerClass =
+    'flex-1 relative min-h-0 overflow-hidden w-full ' +
+    (isMobileColumn && !mobileFill ? 'flex items-center justify-center ' : '') +
+    className;
+
+  let outerExtra: React.CSSProperties | undefined;
+  let innerClass = isMobileColumn && !framed && !mobileFill ? 'w-full max-h-full aspect-video' : 'absolute inset-0';
+  let innerStyle: React.CSSProperties | undefined;
 
   if (mobileFill) {
-    return (
-      <div
-        className={`absolute inset-0 w-full h-full overflow-hidden ${className}`}
-        data-viewport-format="16:9"
-      >
-        <div className="absolute inset-0 w-full h-full">{children}</div>
-      </div>
-    );
+    // Edit on phone: canvas fills the available stage edge-to-edge.
+    outerClass = `absolute inset-0 w-full h-full overflow-hidden bg-[#0d0e11] ${className}`;
+    innerClass = 'absolute inset-0 w-full h-full';
+    innerStyle = undefined;
+  } else if (is916) {
+    outerClass = `flex-1 flex items-center justify-center min-h-0 overflow-hidden w-full bg-[#060608] ${className}`;
+    innerClass =
+      'relative overflow-hidden shrink-0 shadow-[0_0_60px_rgba(57,197,187,0.08)] ring-1 ring-zinc-800/80';
+    innerStyle = { width: VIEWPORT_916_WIDTH, height: VIEWPORT_916_HEIGHT };
+  } else if (framed) {
+    const aspect = viewportAspectCss(format);
+    outerClass = `flex-1 flex items-center justify-center min-h-0 overflow-hidden w-full bg-[#060608] ${className}`;
+    innerClass = 'relative overflow-hidden shrink-0 ring-1 ring-zinc-800/80';
+    innerStyle = {
+      aspectRatio: aspect,
+      maxHeight: '100%',
+      maxWidth: '100%',
+      width: format === '21:9' ? '100%' : undefined,
+      height: format === '21:9' ? 'auto' : '100%',
+    };
   }
 
   return (
-    <div
-      className={`flex-1 relative min-h-0 overflow-hidden w-full ${isMobileColumn ? 'flex items-center justify-center' : ''} ${className}`}
-      data-viewport-format="16:9"
-    >
-      <div className={isMobileColumn ? 'w-full max-h-full aspect-video' : 'absolute inset-0'}>
+    <div className={outerClass} style={outerExtra} data-viewport-format={format}>
+      <div className={innerClass} style={innerStyle}>
         {children}
       </div>
     </div>

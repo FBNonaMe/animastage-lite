@@ -15,6 +15,7 @@ import {
   isAmmoPhysicsBroken,
   markAmmoPhysicsBroken,
 } from './mmdCharacterPhysics';
+import { countMeshRigidBodies, evaluatePhysicsEligibility, isAmmoOomError } from '../physics/physicsEligibility';
 import { restartMeshPhysics } from './mmdPhysicsLifecycle';
 import { initAmmo, isAmmoInitialized } from './ammoLoader';
 import { registerScenePhysics } from '../scene/scenePhysicsRegistry';
@@ -93,8 +94,7 @@ export function runStagedMmdAttach(ctx: StagedAttachContext): () => void {
     meshAttached = true;
     onHelperAttached?.();
   } catch (err) {
-    const msg = String((err as Error)?.message || err);
-    if (/out of memory|\bOOM\b|wasm.*oom|unreachable/i.test(msg)) {
+    if (isAmmoOomError(err)) {
       markAmmoPhysicsBroken(err);
     }
     console.warn('[MMD] helper.add failed, retrying without physics:', err);
@@ -131,11 +131,19 @@ export function runStagedMmdAttach(ctx: StagedAttachContext): () => void {
     if (!isCurrent()) return;
     beginPhysicsBootstrap();
 
+    const eligibility = evaluatePhysicsEligibility(mesh);
     const physicsEnabled =
       meshAttached &&
       isAmmoInitialized() &&
       !isAmmoPhysicsBroken() &&
-      physicsMode !== 'off';
+      physicsMode !== 'off' &&
+      eligibility.allowed;
+
+    if (!eligibility.allowed && physicsMode !== 'off') {
+      console.info(
+        `[MMD] Physics skipped (${eligibility.reason}, ${eligibility.rigidBodyCount} bodies)`
+      );
+    }
 
     const finishPhysicsStage = () => {
       try {
@@ -179,6 +187,7 @@ export function runStagedMmdAttach(ctx: StagedAttachContext): () => void {
           });
         }
       } catch (err) {
+        if (isAmmoOomError(err)) markAmmoPhysicsBroken(err);
         console.warn('[MMD] Physics bootstrap failed:', err);
         helper.enable('physics', false);
         onPhysicsStageComplete?.();

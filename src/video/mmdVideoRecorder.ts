@@ -11,7 +11,7 @@ import {
 } from '../utils/viewportFormat';
 import type { ViewportFormat } from '../types';
 import { saveBlob } from '../native/saveBlob';
-import { beginRecordingCapture, endRecordingCapture } from './recordingCapture';
+import { beginRecordingCapture, endRecordingCapture, applyCinemaInternalResolution } from './recordingCapture';
 
 export type VideoRecordRange = 'full' | 'timeline';
 
@@ -25,6 +25,19 @@ export interface VideoRecordOptions {
   exportDurationSec?: number;
   loopIn?: number;
   loopOut?: number;
+  /** Cinema Render — exact output size (downsampled from supersampled canvas). */
+  targetWidth?: number;
+  targetHeight?: number;
+  /** Internal render scale: 1 | 1.5 | 2 | 3 then downsample to target. */
+  supersample?: number;
+  /** Extra RAF settles per frame (physics / pose / shadows). */
+  settleFrames?: number;
+  /** Offline quality-first mode — never skip frames, max bitrate path. */
+  cinemaMode?: boolean;
+  /** Preferred codec family; falls back to H.264. */
+  codecPreference?: 'h264' | 'h265' | 'av1';
+  /** Sub-sample accumulation before encode (Cinema AA when supersample is low). */
+  frameAccumulation?: number;
 }
 
 export interface VideoRecordProgress {
@@ -44,69 +57,146 @@ function timestampName(): string {
 
 function resolveFrameRange(
   opts: VideoRecordOptions
-): { start: number; end: number } {
+): { start: number; end: number; encodeCount: number; timelineFps: number } {
   const max = Math.max(1, opts.maxFrames);
-  const fps = Math.max(1, opts.fps ?? MMD_FPS);
+  const timelineFps = MMD_FPS;
+  const exportFps = Math.max(1, Math.min(120, opts.fps ?? MMD_FPS));
+  let timelineStart = 0;
+  let timelineEnd = max;
   if (opts.range === 'timeline' && opts.loopOut != null && opts.loopIn != null && opts.loopOut > opts.loopIn) {
-    return {
-      start: Math.max(0, Math.floor(opts.loopIn)),
-      end: Math.min(max, Math.ceil(opts.loopOut)),
-    };
+    timelineStart = Math.max(0, Math.floor(opts.loopIn));
+    timelineEnd = Math.min(max, Math.ceil(opts.loopOut));
+  } else if (opts.exportDurationSec != null && opts.exportDurationSec > 0) {
+    // Duration is wall-clock timeline time at MMD 30 FPS — not exportFps.
+    timelineEnd = Math.min(max, Math.max(1, Math.ceil(opts.exportDurationSec * timelineFps)));
   }
-  let end = max;
-  if (opts.exportDurationSec != null && opts.exportDurationSec > 0) {
-    end = Math.min(max, Math.max(1, Math.ceil(opts.exportDurationSec * fps)));
-  }
-  return { start: 0, end };
+  const durationSec = Math.max(1 / timelineFps, (timelineEnd - timelineStart) / timelineFps);
+  // Encode denser than timeline when export FPS > 30 (smoother motion).
+  const encodeCount = Math.max(1, Math.round(durationSec * exportFps));
+  return {
+    start: timelineStart,
+    end: timelineEnd,
+    encodeCount,
+    timelineFps,
+  };
+}
+
+function evenDim(n: number): number {
+  return Math.max(2, Math.round(n / 2) * 2);
 }
 
 function exportDimensions(
   canvas: HTMLCanvasElement,
-  format: ViewportFormat
+  format: ViewportFormat,
+  opts?: Pick<VideoRecordOptions, 'targetWidth' | 'targetHeight' | 'cinemaMode'>
 ): { width: number; height: number } {
   let width: number;
   let height: number;
-  if (format === '9:16') {
+  if (opts?.targetWidth && opts?.targetHeight) {
+    width = evenDim(opts.targetWidth);
+    height = evenDim(opts.targetHeight);
+  } else if (format === '9:16') {
     width = SHORTS_EXPORT_WIDTH;
     height = SHORTS_EXPORT_HEIGHT;
+  } else if (format === '1:1') {
+    width = 1080;
+    height = 1080;
+  } else if (format === '4:5') {
+    width = 1080;
+    height = 1350;
+  } else if (format === '21:9') {
+    width = 2560;
+    height = 1080;
   } else {
     width = canvas.width;
     height = canvas.height;
   }
-  if (isNativeApp()) {
-    const maxEdge = format === '9:16' ? 1280 : 960;
+  if (isNativeApp() && !opts?.cinemaMode) {
+    const maxEdge = format === '9:16' || format === '4:5' ? 1280 : 960;
     const edge = Math.max(width, height);
     if (edge > maxEdge) {
       const scale = maxEdge / edge;
-      width = Math.max(2, Math.round((width * scale) / 2) * 2);
-      height = Math.max(2, Math.round((height * scale) / 2) * 2);
+      width = evenDim(width * scale);
+      height = evenDim(height * scale);
     }
   }
   return { width, height };
 }
 
-async function pickH264Codec(
+async function pickVideoCodec(
   w: number,
   h: number,
   bitrate: number,
-  fps: number
-): Promise<string | null> {
+  fps: number,
+  preference: 'h264' | 'h265' | 'av1' = 'h264'
+): Promise<{
+  codec: string;
+  muxCodec: 'avc' | 'hevc' | 'av1';
+  hardwareAcceleration: NonNullable<VideoEncoderConfig['hardwareAcceleration']>;
+} | null> {
   if (typeof VideoEncoder === 'undefined') return null;
-  const candidates = ['avc1.640028', 'avc1.4d002a', 'avc1.42E01E'];
-  for (const codec of candidates) {
-    try {
-      const support = await VideoEncoder.isConfigSupported({
-        codec,
-        width: w,
-        height: h,
-        bitrate,
-        framerate: fps,
-      });
-      if (support.supported) return codec;
-    } catch {
-      /* try next */
+
+  // Higher levels first — Level 4.0 (avc1.640028) rejects 4K / tall 9:16.
+  const h264 = [
+    'avc1.640034', // High 5.2
+    'avc1.640033', // High 5.1 (4K / 2160×3840)
+    'avc1.640032', // High 5.0
+    'avc1.64002A', // High 4.2
+    'avc1.640028', // High 4.0
+    'avc1.4d4028', // Main 4.0
+    'avc1.42E01E', // Baseline 3.0
+  ];
+  const h265 = ['hvc1.1.6.L153.B0', 'hvc1.1.6.L123.B0', 'hev1.1.6.L153.B0', 'hev1.1.6.L123.B0'];
+  const av1 = ['av01.0.08M.08', 'av01.0.04M.08'];
+  type HwAccel = NonNullable<VideoEncoderConfig['hardwareAcceleration']>;
+  type Picked = {
+    codec: string;
+    muxCodec: 'avc' | 'hevc' | 'av1';
+    hardwareAcceleration: HwAccel;
+  };
+
+  const tryList = async (
+    candidates: string[],
+    muxCodec: 'avc' | 'hevc' | 'av1',
+    hw: HwAccel
+  ): Promise<Picked | null> => {
+    for (const codec of candidates) {
+      try {
+        const support = await VideoEncoder.isConfigSupported({
+          codec,
+          width: w,
+          height: h,
+          bitrate,
+          framerate: fps,
+          hardwareAcceleration: hw,
+        });
+        if (support.supported) return { codec, muxCodec, hardwareAcceleration: hw };
+      } catch {
+        /* try next */
+      }
     }
-  }
+    return null;
+  };
+
+  const tryPref = async (preferenceInner: 'h264' | 'h265' | 'av1'): Promise<Picked | null> => {
+    for (const hw of ['prefer-hardware', 'prefer-software', 'no-preference'] as const) {
+      if (preferenceInner === 'av1') {
+        const av1Hit = await tryList(av1, 'av1', hw);
+        if (av1Hit) return av1Hit;
+      }
+      if (preferenceInner === 'h265' || preferenceInner === 'av1') {
+        const hevcHit = await tryList(h265, 'hevc', hw);
+        if (hevcHit) return hevcHit;
+      }
+      const h264Hit = await tryList(h264, 'avc', hw);
+      if (h264Hit) return h264Hit;
+    }
+    return null;
+  };
+
+  const preferred = await tryPref(preference);
+  if (preferred) return preferred;
+  if (preference !== 'h264') return tryPref('h264');
   return null;
 }
 
@@ -153,6 +243,44 @@ function captureVideoFrame(
     return new VideoFrame(canvas, { timestamp });
   }
   ctx.drawImage(canvas, 0, 0, targetW, targetH);
+  return new VideoFrame(oc, { timestamp });
+}
+
+/**
+ * Cinema frame accumulation — average N sub-samples into an OffscreenCanvas
+ * for cheaper AA when supersample < 2.
+ */
+async function captureAccumulatedFrame(
+  canvas: HTMLCanvasElement,
+  targetW: number,
+  targetH: number,
+  timestamp: number,
+  samples: number
+): Promise<VideoFrame> {
+  const n = Math.max(1, Math.min(4, Math.floor(samples)));
+  if (n <= 1) return captureVideoFrame(canvas, targetW, targetH, timestamp);
+
+  const oc = new OffscreenCanvas(targetW, targetH);
+  const ctx = oc.getContext('2d', { alpha: false });
+  if (!ctx) return captureVideoFrame(canvas, targetW, targetH, timestamp);
+
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.clearRect(0, 0, targetW, targetH);
+  for (let s = 0; s < n; s++) {
+    if (s > 0) await waitFrames(1);
+    ctx.globalAlpha = 1 / (s + 1);
+    ctx.globalCompositeOperation = s === 0 ? 'copy' : 'source-over';
+    // Running average: draw with weight 1/(s+1) over previous average
+    if (s === 0) {
+      ctx.globalAlpha = 1;
+      ctx.drawImage(canvas, 0, 0, targetW, targetH);
+    } else {
+      ctx.globalAlpha = 1 / (s + 1);
+      ctx.drawImage(canvas, 0, 0, targetW, targetH);
+    }
+  }
+  ctx.globalAlpha = 1;
   return new VideoFrame(oc, { timestamp });
 }
 
@@ -252,7 +380,8 @@ async function encodeCapturedFrame(
   w: number,
   h: number,
   timestamp: number,
-  requestKeyFrame: boolean
+  requestKeyFrame: boolean,
+  accumulation = 1
 ): Promise<{ bundle: EncoderBundle; keyFrame: boolean }> {
   let keyFrame = requestKeyFrame;
   let active = bundle;
@@ -264,7 +393,7 @@ async function encodeCapturedFrame(
 
   let vf: VideoFrame | null = null;
   try {
-    vf = captureVideoFrame(canvas, w, h, timestamp);
+    vf = await captureAccumulatedFrame(canvas, w, h, timestamp, accumulation);
 
     const runEncode = () => {
       if (active.encoder.state === 'closed') {
@@ -310,6 +439,7 @@ export function isVideoRenderAborted(): boolean {
 
 /**
  * Offline frame-by-frame MP4 (HQ) — one WebCodecs encode per timeline frame.
+ * Cinema Mode: ignore viewport FPS, never skip/dup frames, supersample then downsample.
  */
 export async function renderOfflineMp4(
   canvas: HTMLCanvasElement,
@@ -318,16 +448,43 @@ export async function renderOfflineMp4(
   onProgress?: (p: VideoRecordProgress) => void
 ): Promise<boolean> {
   abortFlag = false;
-  const fps = Math.max(1, Math.min(60, opts.fps ?? MMD_FPS));
-  const bitrate = Math.max(8_000_000, Math.min(80_000_000, (opts.bitrateMbps ?? 35) * 1_000_000));
-  const { start, end } = resolveFrameRange(opts);
-  const totalFrames = Math.max(1, end - start);
+  const cinema = Boolean(opts.cinemaMode);
+  const fps = Math.max(1, Math.min(120, opts.fps ?? MMD_FPS));
+  const maxBitrate = cinema ? 180_000_000 : 80_000_000;
+  const bitrate = Math.max(
+    cinema ? 16_000_000 : 8_000_000,
+    Math.min(maxBitrate, (opts.bitrateMbps ?? (cinema ? 48 : 35)) * 1_000_000)
+  );
+  const { start, end, encodeCount, timelineFps } = resolveFrameRange(opts);
+  const totalFrames = encodeCount;
   const format = opts.viewportFormat ?? '16:9';
-  const { width: w, height: h } = exportDimensions(canvas, format);
+  const { width: w, height: h } = exportDimensions(canvas, format, opts);
+  const settleFrames = Math.max(1, opts.settleFrames ?? (cinema ? 6 : 1));
+  const supersample = Math.max(1, opts.supersample ?? 1);
+  const accumulation =
+    cinema && (opts.supersample ?? 1) < 2
+      ? Math.max(1, opts.frameAccumulation ?? 2)
+      : cinema
+        ? Math.max(1, opts.frameAccumulation ?? 1)
+        : 1;
 
-  const codec = await pickH264Codec(w, h, bitrate, fps);
-  if (!codec) {
-    onProgress?.({ phase: 'error', progress: 0, message: 'WebCodecs H.264 unavailable — use Live record (Chrome/Edge).' });
+  let picked = await pickVideoCodec(
+    w,
+    h,
+    bitrate,
+    fps,
+    opts.codecPreference ?? 'h264'
+  );
+  // mp4-muxer path requires AVC — fall back to H.264 if HEVC/AV1 was selected.
+  if (!picked || picked.muxCodec !== 'avc') {
+    picked = await pickVideoCodec(w, h, bitrate, fps, 'h264');
+  }
+  if (!picked) {
+    onProgress?.({
+      phase: 'error',
+      progress: 0,
+      message: 'WebCodecs H.264 unavailable — use Live record (Chrome/Edge).',
+    });
     return false;
   }
 
@@ -342,8 +499,26 @@ export async function renderOfflineMp4(
     return false;
   }
 
-  beginRecordingCapture();
-  onProgress?.({ phase: 'render', progress: 0, message: `Frames 0 / ${totalFrames}` });
+  beginRecordingCapture({
+    cinemaMode: cinema,
+    settleFrames,
+    maxDpr: cinema ? Math.min(3, Math.max(2, supersample)) : 2,
+    targetWidth: w,
+    targetHeight: h,
+    supersample: cinema ? supersample : 1,
+  });
+
+  // Let React apply cinema quality + lock internal GL size before first frame.
+  await waitFrames(cinema ? 4 : 2);
+  applyCinemaInternalResolution();
+  await waitFrames(cinema ? 2 : 1);
+
+  const label = cinema ? 'Cinema' : 'HQ';
+  onProgress?.({
+    phase: 'render',
+    progress: 0,
+    message: `${label} 0 / ${totalFrames} · ${w}×${h}${supersample > 1 ? ` · ${supersample}× SS` : ''}`,
+  });
 
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
@@ -352,13 +527,15 @@ export async function renderOfflineMp4(
   });
 
   const encoderConfig: VideoEncoderConfig = {
-    codec,
+    codec: picked.codec,
     width: w,
     height: h,
-    bitrate: isNativeApp() ? Math.min(bitrate, 12_000_000) : bitrate,
+    bitrate: isNativeApp() && !cinema ? Math.min(bitrate, 12_000_000) : bitrate,
     framerate: fps,
     latencyMode: 'quality',
-    hardwareAcceleration: isNativeApp() ? 'prefer-software' : 'prefer-hardware',
+    hardwareAcceleration: isNativeApp()
+      ? 'prefer-software'
+      : picked.hardwareAcceleration,
   };
 
   let bundle: EncoderBundle;
@@ -379,9 +556,14 @@ export async function renderOfflineMp4(
   try {
     for (let i = 0; i < totalFrames; i++) {
       if (abortFlag) break;
-      const frame = start + i;
-      await onAdvanceFrame(frame);
-      await waitFrames(1);
+      // Map encode index → timeline frame (60/90/120 FPS export of 30 FPS motion).
+      const tSec = i / fps;
+      const timelineFrame =
+        start + Math.min(Math.max(0, end - start - 1e-4), tSec * timelineFps);
+      await onAdvanceFrame(timelineFrame);
+      // Cinema: settle every frame so pose/physics/shadows never lag capture.
+      await waitFrames(settleFrames);
+      if (cinema) applyCinemaInternalResolution();
 
       const timestamp = Math.round(i * (1_000_000 / fps));
       const keyFrameRequest = needKeyFrame || i === 0 || i % (fps * 2) === 0;
@@ -393,7 +575,8 @@ export async function renderOfflineMp4(
         w,
         h,
         timestamp,
-        keyFrameRequest
+        keyFrameRequest,
+        accumulation
       );
       bundle = result.bundle;
       needKeyFrame = result.keyFrame;
@@ -403,7 +586,7 @@ export async function renderOfflineMp4(
         onProgress?.({
           phase: 'render',
           progress: pct,
-          message: `Frames ${i + 1} / ${totalFrames} (${Math.round(pct * 100)}%)`,
+          message: `${label} ${i + 1} / ${totalFrames} (${Math.round(pct * 100)}%) · ${fps} FPS`,
         });
       }
     }
@@ -415,13 +598,15 @@ export async function renderOfflineMp4(
       closeEncoderSafe(bundle.encoder);
       muxer.finalize();
       const buffer = muxer.target.buffer;
-      const mp4Name = `mmd-render-${timestampName()}.mp4`;
+      const mp4Name = cinema
+        ? `animastage-cinema-${timestampName()}.mp4`
+        : `mmd-render-${timestampName()}.mp4`;
       const saved = await saveBlob(new Blob([buffer], { type: 'video/mp4' }), mp4Name);
       onProgress?.({
         phase: 'done',
         progress: 1,
         message: saved.ok
-          ? `${saved.message} (${totalFrames} fr @ ${fps} FPS)`
+          ? `${saved.message} (${totalFrames} fr @ ${fps} FPS · ${w}×${h})`
           : saved.message,
       });
     } else {
@@ -455,7 +640,8 @@ export interface LiveRecordHandle {
 export function startLiveRecord(
   canvas: HTMLCanvasElement,
   opts: VideoRecordOptions,
-  onStop?: (blob: Blob, ext: string, saved?: import('../native/saveBlob').SaveBlobResult) => void
+  onStop?: (blob: Blob, ext: string, saved?: import('../native/saveBlob').SaveBlobResult) => void,
+  captureOpts?: { maxDpr?: number }
 ): LiveRecordHandle | null {
   const mime = pickRecorderMime();
   if (!mime || typeof MediaRecorder === 'undefined') {
@@ -463,7 +649,8 @@ export function startLiveRecord(
   }
 
   const fps = Math.max(1, Math.min(60, opts.fps ?? MMD_FPS));
-  const bitrate = Math.max(4_000_000, (opts.bitrateMbps ?? 28) * 1_000_000);
+  // LIVE bitrate stays moderate — high Mbps + RP3 = dropped frames.
+  const bitrate = Math.max(4_000_000, (opts.bitrateMbps ?? 12) * 1_000_000);
   const stream = canvas.captureStream(fps);
 
   let recorder: MediaRecorder;
@@ -494,7 +681,10 @@ export function startLiveRecord(
     });
   };
 
-  beginRecordingCapture();
+  beginRecordingCapture({
+    interactive: true,
+    maxDpr: captureOpts?.maxDpr ?? 1.25,
+  });
   recorder.start(250);
 
   return {
@@ -506,8 +696,17 @@ export function startLiveRecord(
 }
 
 export function getPreviewExportSize(format: ViewportFormat): { width: number; height: number } {
-  if (format === '9:16') {
-    return { width: VIEWPORT_916_WIDTH, height: VIEWPORT_916_HEIGHT };
+  switch (format) {
+    case '9:16':
+      return { width: VIEWPORT_916_WIDTH, height: VIEWPORT_916_HEIGHT };
+    case '1:1':
+      return { width: 1080, height: 1080 };
+    case '4:5':
+      return { width: 1080, height: 1350 };
+    case '21:9':
+      return { width: 2560, height: 1080 };
+    case '16:9':
+    default:
+      return { width: 1920, height: 1080 };
   }
-  return { width: 1920, height: 1080 };
 }

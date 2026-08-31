@@ -1,6 +1,8 @@
 import { Gauge } from 'lucide-react';
 import type { StudioUiMode } from '../../flow/types';
 import type { QualityMode } from '../../product/scene/types';
+import type { EditorInterfaceId } from '../../uiVersions';
+import UiVersionSwitcher from '../../uiVersions/UiVersionSwitcher';
 import { Button } from '../../components/UI';
 
 const QUALITY_OPTIONS: { id: QualityMode; label: string; short: string; tip: string }[] = [
@@ -50,6 +52,8 @@ function Segmented<T extends string>({
 export interface ProMobileMenuSettingsProps {
   uiMode: StudioUiMode;
   onUiModeChange: (mode: StudioUiMode) => void;
+  editorInterface: EditorInterfaceId;
+  onEditorInterfaceChange: (id: EditorInterfaceId) => void;
   qualityMode: QualityMode;
   onQualityModeChange: (mode: QualityMode) => void;
   optimizedHint?: boolean;
@@ -58,6 +62,8 @@ export interface ProMobileMenuSettingsProps {
 export default function ProMobileMenuSettings({
   uiMode,
   onUiModeChange,
+  editorInterface,
+  onEditorInterfaceChange,
   qualityMode,
   onQualityModeChange,
   optimizedHint,
@@ -75,6 +81,14 @@ export default function ProMobileMenuSettings({
           ]}
           value={uiMode}
           onChange={onUiModeChange}
+        />
+      </div>
+      <div className="pro-mobile-menu-settings__block">
+        <p className="pro-mobile-menu-settings__label">Appearance · Editor Interface</p>
+        <UiVersionSwitcher
+          value={editorInterface}
+          onChange={onEditorInterfaceChange}
+          variant="menu"
         />
       </div>
       <div className="pro-mobile-menu-settings__block">

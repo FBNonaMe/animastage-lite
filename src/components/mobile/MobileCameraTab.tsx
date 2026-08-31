@@ -1,4 +1,4 @@
-import { Camera, Lock, Unlock } from 'lucide-react';
+import { Camera, Lock, Unlock, Move, Clapperboard, Aperture } from 'lucide-react';
 import { Button } from '../UI';
 import type { AppState } from '../../types';
 
@@ -6,12 +6,18 @@ interface MobileCameraTabProps {
   appState: AppState;
   onSetCameraMode: (mode: AppState['cameraMode']) => void;
   onToggleManualLock: () => void;
+  onEnterDirectCameraMode?: () => void;
+  onOpenCineStudio?: () => void;
+  onOpenReferenceCameraStudio?: () => void;
 }
 
 export default function MobileCameraTab({
   appState,
   onSetCameraMode,
   onToggleManualLock,
+  onEnterDirectCameraMode,
+  onOpenCineStudio,
+  onOpenReferenceCameraStudio,
 }: MobileCameraTabProps) {
   const manual = appState.cameraStudio.manualCameraLock;
 
@@ -22,6 +28,31 @@ export default function MobileCameraTab({
         camera yourself.
       </p>
       <div className="flex flex-col gap-[var(--space-sm)]">
+        <Button
+          type="button"
+          variant={
+            appState.cameraMode === 'free' && appState.cameraStudio.directPlacement !== false
+              ? 'primary'
+              : 'secondary'
+          }
+          className="w-full"
+          onClick={() => onEnterDirectCameraMode?.() ?? onSetCameraMode('free')}
+        >
+          <Move className="w-4 h-4" />
+          Move Cam + Gizmo
+        </Button>
+        {onOpenCineStudio ? (
+          <Button type="button" variant="secondary" className="w-full" onClick={onOpenCineStudio}>
+            <Clapperboard className="w-4 h-4" />
+            Cine Studio
+          </Button>
+        ) : null}
+        {onOpenReferenceCameraStudio ? (
+          <Button type="button" variant="secondary" className="w-full" onClick={onOpenReferenceCameraStudio}>
+            <Aperture className="w-4 h-4" />
+            Cam Studio
+          </Button>
+        ) : null}
         <Button
           type="button"
           variant={appState.cameraMode === 'free' ? 'primary' : 'secondary'}

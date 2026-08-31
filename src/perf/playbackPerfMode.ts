@@ -23,29 +23,33 @@ export function isPlaybackPerfActive(): boolean {
   return playbackActive;
 }
 
-/** Minimum DPR multiplier while playing in 16:9 — avoids blur from stacked downscales. */
+/** Minimum DPR multiplier while playing in 16:9 — characters stay crisp during dance. */
 export function getPlaybackDprFloor(): number {
   if (!playbackActive || isPortraitFormat(viewportFormat)) return 0;
-  if (getSceneTriangleCount() >= 500_000) return 0.72;
-  if (getSceneTriangleCount() >= 300_000) return 0.78;
+  if (getSceneTriangleCount() >= 500_000) return 0.85;
+  if (getSceneTriangleCount() >= 300_000) return 0.9;
 
   switch (characterQuality) {
     case 'uhd4k':
       return 0.95;
     case 'hd':
-      return 0.88;
+      return 0.92;
     default:
-      return 0.82;
+      return 0.9;
   }
 }
 
-/** Max perf-governor tier index during playback (0 = 100% scale). */
+/**
+ * Max perf-governor tier index during playback.
+ * Tier 4 = all FX/lighting/scene/physics cuts, still 100% render scale —
+ * playback never enters the render-scale tiers unless the scene is very heavy.
+ */
 export function getPlaybackGovernorTierCap(): number {
   const heavyScene = getSceneTriangleCount() >= 400_000;
   if (heavyScene) {
     return GOVERNOR_MAX_TIER;
   }
-  return playbackActive && !isPortraitFormat(viewportFormat) ? 3 : GOVERNOR_MAX_TIER;
+  return playbackActive && !isPortraitFormat(viewportFormat) ? 4 : GOVERNOR_MAX_TIER;
 }
 
 /** Max combined visual degrade level during playback. */

@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 import { MMDFlexibleTextureLoader } from './mmdTextureLoader';
+import type { CharacterModelFormat, AssetModelKind } from '../types';
+import { cacheVmdArrayBuffer } from './vmdBlobCache';
 import './mmdCharsetPatch';
+
+export type { CharacterModelFormat };
 
 export interface ProcessedMMDFiles {
   name: string;
   blobUrl: string;
   modelFileName: string;
+  modelFormat?: CharacterModelFormat;
+  assetKind?: AssetModelKind;
   modelByteSize?: number;
   contentFingerprint?: string;
   manager: THREE.LoadingManager;
@@ -162,6 +168,11 @@ export function extractAssetLookupPath(url: string): string {
     // keep as-is
   }
 
+  // Sketchfab / Blender absolute paths: C:\textures\foo.png → textures/foo.png
+  path = path.replace(/^file:\/\/\/[a-zA-Z]:\/*/i, '');
+  path = path.replace(/^[a-zA-Z]:[\\/]+/, '');
+  path = path.replace(/^\/+/, '');
+
   const hashIdx = path.indexOf('#');
   if (hashIdx >= 0) {
     const beforeHash = path.slice(0, hashIdx);
@@ -298,7 +309,7 @@ export function pathVariants(raw: string): string[] {
   return [...variants].filter(Boolean);
 }
 
-const IMAGE_EXTENSIONS = ['.tga', '.bmp', '.png', '.jpg', '.jpeg', '.webp'];
+const IMAGE_EXTENSIONS = ['.tga', '.bmp', '.png', '.jpg', '.jpeg', '.webp', '.dds'];
 
 function tryExtensionAlternatives(
   lookupPath: string,
@@ -455,9 +466,17 @@ export function createMMDLoadingManager(fileMap: Record<string, string>): THREE.
 }
 
 export function createMMDTextureManager(fileMap: Record<string, string>): THREE.LoadingManager {
+  return createAssetBundleLoadingManager(fileMap);
+}
+
+/** FBX / GLTF / OBJ bundles — resolves all sidecar textures from folder or ZIP. */
+export function createAssetBundleLoadingManager(fileMap: Record<string, string>): THREE.LoadingManager {
   const manager = createMMDLoadingManager(fileMap);
   const textureLoader = new MMDFlexibleTextureLoader(manager);
-  manager.addHandler(/\.(tga|bmp|png|jpe?g|webp)$/i, textureLoader);
+  manager.addHandler(
+    /\.(tga|bmp|png|jpe?g|webp|gif|dds|ktx2?|tif|tiff|exr|hdr)$/i,
+    textureLoader
+  );
   return manager;
 }
 
@@ -494,6 +513,64 @@ export interface ProcessedVmdFiles {
   hasCameraVmd?: boolean;
 }
 
+/** Merge motion-only import into an already-loaded character. */
+export function mergeVmdIntoModel<T extends {
+  fileMap?: Record<string, string>;
+  customManager?: THREE.LoadingManager;
+  vmdBlobUrls?: string[];
+  vmdFileNames?: string[];
+  hasVmdAnimation?: boolean;
+  vmdPlaybackEnabled?: boolean;
+  activeVmdIndex?: number;
+  activeTemplateId?: string | null;
+}>(model: T, vmd: ProcessedVmdFiles): T & {
+  fileMap: Record<string, string>;
+  customManager: THREE.LoadingManager;
+  vmdBlobUrls: string[];
+  vmdFileNames: string[];
+  hasVmdAnimation: boolean;
+  vmdPlaybackEnabled: boolean;
+  activeVmdIndex: number;
+  activeTemplateId: null;
+} {
+  const fileMap = { ...(model.fileMap ?? {}), ...vmd.fileMap };
+  const nameToIndex = new Map((model.vmdFileNames ?? []).map((n, i) => [n, i]));
+  const vmdBlobUrls = [...(model.vmdBlobUrls ?? [])];
+  const vmdFileNames = [...(model.vmdFileNames ?? [])];
+
+  for (let i = 0; i < vmd.vmdBlobUrls.length; i++) {
+    const name = vmd.vmdFileNames[i]!;
+    const url = vmd.vmdBlobUrls[i]!;
+    const existingIdx = nameToIndex.get(name);
+    if (existingIdx != null) {
+      // Re-assign from library: refresh blob URL, keep slot.
+      vmdBlobUrls[existingIdx] = url;
+    } else {
+      nameToIndex.set(name, vmdFileNames.length);
+      vmdBlobUrls.push(url);
+      vmdFileNames.push(name);
+    }
+  }
+
+  const activeName = vmd.vmdFileNames[vmd.vmdFileNames.length - 1];
+  const activeVmdIndex = Math.max(
+    0,
+    activeName != null ? (nameToIndex.get(activeName) ?? vmdBlobUrls.length - 1) : vmdBlobUrls.length - 1
+  );
+
+  return {
+    ...model,
+    fileMap,
+    customManager: model.customManager ?? createMMDTextureManager(fileMap),
+    vmdBlobUrls,
+    vmdFileNames,
+    hasVmdAnimation: vmdBlobUrls.length > 0,
+    vmdPlaybackEnabled: true,
+    activeVmdIndex,
+    activeTemplateId: null,
+  };
+}
+
 export async function processVmdFiles(
   files: File[]
 ): Promise<ProcessedVmdFiles | { error: string }> {
@@ -506,6 +583,7 @@ export async function processVmdFiles(
   for (const file of vmdFiles) {
     const blobUrl = URL.createObjectURL(file);
     registerFileInMap(file, fileMap, blobUrl);
+    cacheVmdArrayBuffer(blobUrl, await file.arrayBuffer());
   }
 
   const { motionVmds, cameraVmd } = await classifyVmdFiles(vmdFiles);
@@ -583,13 +661,71 @@ export async function processMMDFiles(
   };
 }
 
-export function revokeFileMapUrls(fileMap?: Record<string, string>) {
+/** Strip `#fragment` so revoke/retain match createObjectURL bases. */
+export function blobUrlBase(url: string): string {
+  return normalizeBlobFetchUrl(url);
+}
+
+/**
+ * Blob bases still referenced by live models.
+ * Multi-character / stage+character imports share one fileMap — deleting one
+ * model must not revoke URLs the others still need.
+ */
+export function collectRetainedBlobBases(
+  models: Array<{
+    fileMap?: Record<string, string>;
+    blobUrl?: string | null;
+    vmdBlobUrls?: string[];
+  }>
+): Set<string> {
+  const retain = new Set<string>();
+  const add = (url?: string | null) => {
+    if (!url?.startsWith('blob:')) return;
+    const base = blobUrlBase(url);
+    if (isValidBlobUrl(base)) retain.add(base);
+  };
+
+  for (const model of models) {
+    add(model.blobUrl);
+    for (const url of model.vmdBlobUrls ?? []) add(url);
+    if (!model.fileMap) continue;
+    for (const url of Object.values(model.fileMap)) add(url);
+  }
+  return retain;
+}
+
+export function revokeBlobUrl(url?: string | null, retainBases?: Set<string>): void {
+  if (!url?.startsWith('blob:')) return;
+  const base = blobUrlBase(url);
+  if (!isValidBlobUrl(base)) return;
+  if (retainBases?.has(base)) return;
+  try {
+    URL.revokeObjectURL(base);
+  } catch {
+    /* already revoked */
+  }
+}
+
+/**
+ * Revoke object URLs owned by a fileMap.
+ * Pass `retainBases` from remaining models so shared maps stay alive.
+ * HTTP demo URLs are ignored (never created via createObjectURL).
+ */
+export function revokeFileMapUrls(
+  fileMap?: Record<string, string>,
+  retainBases?: Set<string>
+): void {
   if (!fileMap) return;
   const seen = new Set<string>();
   for (const url of Object.values(fileMap)) {
-    if (!seen.has(url)) {
-      URL.revokeObjectURL(url);
-      seen.add(url);
+    const base = blobUrlBase(url);
+    if (!isValidBlobUrl(base) || seen.has(base)) continue;
+    seen.add(base);
+    if (retainBases?.has(base)) continue;
+    try {
+      URL.revokeObjectURL(base);
+    } catch {
+      /* already revoked */
     }
   }
 }

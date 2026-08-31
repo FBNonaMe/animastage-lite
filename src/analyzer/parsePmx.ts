@@ -4,10 +4,16 @@ export interface ParsedPmxSummary {
   format: 'pmx' | 'pmd';
   textures: string[];
   materials: Array<{ name: string; faceCount: number; textureIndex: number }>;
-  bones: Array<{ name: string }>;
+  bones: Array<{
+    name: string;
+    englishName?: string;
+    parentIndex?: number;
+    position?: number[];
+  }>;
   morphs: Array<{ name: string; type?: number }>;
-  rigidBodies: Array<{ type: number; name?: string }>;
+  rigidBodies: Array<{ type: number; name?: string; boneIndex?: number }>;
   constraints: unknown[];
+  iks?: Array<{ target: number; effector: number; links: number[] }>;
   vertexCount: number;
   metadata?: Record<string, unknown>;
 }
@@ -16,10 +22,16 @@ type PmxLike = {
   metadata?: Record<string, unknown>;
   textures?: string[];
   materials?: Array<{ name?: string; faceCount?: number; textureIndex?: number }>;
-  bones?: Array<{ name?: string }>;
+  bones?: Array<{
+    name?: string;
+    englishName?: string;
+    parentIndex?: number;
+    position?: number[];
+  }>;
   morphs?: Array<{ name?: string; type?: number }>;
-  rigidBodies?: Array<{ type?: number; name?: string }>;
+  rigidBodies?: Array<{ type?: number; name?: string; boneIndex?: number }>;
   constraints?: unknown[];
+  iks?: Array<{ target?: number; effector?: number; links?: Array<{ index?: number }> }>;
   vertices?: unknown[];
 };
 
@@ -54,13 +66,24 @@ export async function parseModelBuffer(
       faceCount: m.faceCount ?? 0,
       textureIndex: m.textureIndex ?? -1,
     })),
-    bones: (raw.bones ?? []).map((b) => ({ name: b.name ?? 'bone' })),
+    bones: (raw.bones ?? []).map((b) => ({
+      name: b.name ?? 'bone',
+      englishName: b.englishName,
+      parentIndex: b.parentIndex,
+      position: b.position,
+    })),
     morphs: (raw.morphs ?? []).map((m) => ({ name: m.name ?? 'morph', type: m.type })),
-    rigidBodies: (raw.rigidBodies ?? []).map((r) => ({
+    rigidBodies: (raw.rigidBodies ?? []).map((r, i) => ({
       type: r.type ?? 0,
       name: r.name,
+      boneIndex: (r as { boneIndex?: number }).boneIndex ?? i,
     })),
     constraints: raw.constraints ?? [],
+    iks: (raw.iks ?? []).map((ik) => ({
+      target: ik.target ?? -1,
+      effector: ik.effector ?? -1,
+      links: (ik.links ?? []).map((l) => l.index ?? -1).filter((idx) => idx >= 0),
+    })),
     vertexCount: raw.vertices?.length ?? 0,
     metadata: raw.metadata,
   };

@@ -4,7 +4,7 @@ import type { MmdPhysicsBodyWrapper } from '../utils/mmdCharacterPhysics';
 import {
   applyPhysicsLiveSettings,
   configureArmPhysicsForAnimation,
-  getAnimHelperObjects,
+  repairStretchedPhysicsBones,
 } from '../utils/mmdCharacterPhysics';
 import {
   findDuplicateHashGroups,
@@ -139,6 +139,7 @@ export function softResetModelPhysics(reg: PhysicsModelRegistration): number {
 
   applyPhysicsLiveSettings(physics);
   configureArmPhysicsForAnimation(reg.mesh, reg.helper);
+  repairStretchedPhysicsBones(reg.mesh, physics);
   reg.ensurePhysicsEnabled?.();
   reg.helper.enable('physics', true);
 
@@ -167,6 +168,30 @@ export function setModelPhysicsHidden(reg: PhysicsModelRegistration, hidden: boo
       rb.setActivationState(DISABLE_DEACTIVATION);
       rb.activate(true);
       wrapper.updateFromBone?.();
+    }
+  }
+}
+
+/** Allow soft bodies to sleep when timeline is paused (playtime physics). */
+export function sleepSoftBodiesWhenIdle(physics: MMDPhysics | undefined): void {
+  if (!physics?.bodies?.length) return;
+  const ISLAND_SLEEPING = 2;
+  const WANTS_DEACTIVATION = 3;
+  const bodies = physics.bodies as unknown as MmdPhysicsBodyWrapper[];
+  for (const wrapper of bodies) {
+    const rb = wrapper.body;
+    if (!rb || wrapper.params.type === 0) continue;
+    try {
+      const state = rb.getActivationState?.() as number | undefined;
+      if (state === DISABLE_SIMULATION) continue;
+      // Prefer natural deactivation over permanent DISABLE_DEACTIVATION when idle.
+      if (state === DISABLE_DEACTIVATION) {
+        rb.setActivationState(WANTS_DEACTIVATION);
+      } else if (state === ACTIVE_TAG) {
+        rb.setActivationState(ISLAND_SLEEPING);
+      }
+    } catch {
+      /* ignore */
     }
   }
 }

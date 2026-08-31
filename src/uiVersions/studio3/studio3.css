@@ -1,0 +1,266 @@
+/**
+ * UI 3.0 Studio shell layout + responsive adaptation.
+ * Keeps the 3D viewport in a sized host so R3F Canvas can measure height.
+ */
+
+.studio3-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #080a0e;
+  color: #e4e4e7;
+}
+
+.studio3-shell__main {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.studio3-dock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.studio3-dock__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.studio3-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0e1117;
+  border: 1px solid #1e2430;
+}
+
+.studio3-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.studio3-viewport-host {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: #0d0e11;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Critical: fill host so Canvas gets a non-zero size (flex-1 alone failed here). */
+.studio3-viewport-host > .studio-viewport-column,
+.studio3-viewport-fill {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.studio3-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 2.15rem;
+  padding: 0.25rem 0;
+  gap: 0.05rem;
+  border-right: 1px solid #1e2430;
+  background: #0c0f14;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.studio3-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.studio3-shell__tabs {
+  min-height: 1.6rem;
+  gap: 0;
+}
+
+.studio3-shell__header {
+  min-height: 2.25rem;
+}
+
+.studio3-empty-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(13, 14, 17, 0.35), transparent 70%);
+}
+
+.studio3-empty-hint__card {
+  pointer-events: auto;
+  max-width: 22rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  background: rgba(12, 15, 20, 0.92);
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* —— Responsive adaptation (Adaptive Studio UI 3.0) —— */
+@media (max-width: 1320px) {
+  .studio3-shell__tabs .studio3-tab-label {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .studio3-dock--right {
+    width: min(280px, 32vw) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .studio3-rail {
+    display: none;
+  }
+
+  .studio3-dock--right {
+    display: none !important;
+  }
+
+  .studio3-shell__ws-actions .studio3-ws-label {
+    display: none;
+  }
+}
+
+/* Tablet portrait / phone: left dock becomes overlay drawer */
+@media (max-width: 768px) {
+  .studio3-shell:not(.studio3-shell--mobile-adaptive) {
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .studio3-dock--left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(300px, 86vw) !important;
+    max-width: calc(100vw - var(--safe-left) - var(--safe-right));
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.45);
+    padding-left: var(--safe-left);
+  }
+
+  .studio3-shell__header {
+    gap: 0.35rem;
+    padding-left: max(0.5rem, var(--safe-left));
+    padding-right: max(0.5rem, var(--safe-right));
+    min-height: var(--studio-touch-min);
+  }
+
+  .studio3-shell__tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .studio3-shell__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .studio3-viewport-host {
+    /* Viewport always wins remaining space */
+    flex: 1 1 auto;
+    min-height: 40vh;
+  }
+
+  .studio3-timeline-host {
+    max-height: min(38vh, 280px);
+    min-height: 0;
+  }
+}
+
+/* Phone landscape: compact chrome, preserve viewport width */
+@media (max-width: 768px) and (orientation: landscape) {
+  .studio3-shell__tabs {
+    display: none;
+  }
+
+  .studio3-timeline-host {
+    max-height: min(32vh, 180px);
+  }
+}
+
+/* Touch: larger rail buttons */
+html[data-studio-touch='1'] .studio3-rail button {
+  min-width: var(--studio-touch-min);
+  min-height: var(--studio-touch-min);
+}
+
+/* Bottom sheet style panel (phone) */
+.studio3-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  max-height: min(62vh, 420px);
+  border-radius: 0.85rem 0.85rem 0 0;
+  border: 1px solid #1e2430;
+  border-bottom: none;
+  background: #0e1117;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+  padding-bottom: var(--safe-bottom);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.studio3-sheet__handle {
+  width: 2.5rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: #3f3f46;
+  margin: 0.45rem auto 0.25rem;
+  flex-shrink: 0;
+}
+
+.studio3-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.studio3-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  cursor: pointer;
+}

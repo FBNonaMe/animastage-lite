@@ -19,12 +19,12 @@
   --color-text-secondary: #a1a1aa;
   --color-text-muted: #71717a;
 
-  /* ── Spacing ── */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 24px;
+  /* ── Spacing (scaled by Adaptive Studio when mounted) ── */
+  --space-xs: calc(4px * var(--studio-space-scale, 1));
+  --space-sm: calc(8px * var(--studio-space-scale, 1));
+  --space-md: calc(12px * var(--studio-space-scale, 1));
+  --space-lg: calc(16px * var(--studio-space-scale, 1));
+  --space-xl: calc(24px * var(--studio-space-scale, 1));
 
   /* ── Border radius ── */
   --radius-sm: 6px;
@@ -32,10 +32,12 @@
   --radius-lg: 14px;
 
   /* ── Typography ── */
-  --font-size-sm: 0.6875rem;   /* 11px */
-  --font-size-base: 0.75rem;   /* 12px */
-  --font-size-md: 0.8125rem;   /* 13px */
-  --font-size-lg: 0.875rem;    /* 14px */
+  --font-size-sm: calc(0.6875rem * var(--studio-font-scale, 1));   /* 11px */
+  --font-size-base: calc(0.75rem * var(--studio-font-scale, 1));   /* 12px */
+  --font-size-md: calc(0.8125rem * var(--studio-font-scale, 1));   /* 13px */
+  --font-size-lg: calc(0.875rem * var(--studio-font-scale, 1));    /* 14px */
+
+  --touch-min: var(--studio-touch-min, 44px);
 
   --font-weight-medium: 500;
   --font-weight-semibold: 600;

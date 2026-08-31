@@ -1,22 +1,39 @@
 import { useMemo } from 'react';
 import {
   Bloom,
+  BrightnessContrast,
   ChromaticAberration,
   DepthOfField,
+  HueSaturation,
   N8AO,
   SMAA,
-  SSAO,
+  Sepia,
   Vignette,
 } from '@react-three/postprocessing';
-import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 import type { ViewportFormat, VisualFxSettings } from '../types';
 import type { RtxSettings } from '../utils/rtxSettings';
 import { getLitePostFxTuning, resolveBloomParams } from '../postfx/litePostFxConfig';
+import { getColorGrade } from '../visualFx/visualFxPresets';
 import { usePostFxGlReady } from '../postfx/usePostFxGlReady';
 import PostFxDeferredComposer from '../postfx/PostFxDeferredComposer';
+import CustomLutPass from '../postfx/CustomLutPass';
+import RayColorGradingPass from '../postfx/rayMmd/RayColorGradingPass';
+import RayHdrBloomPass from '../postfx/rayMmd/RayHdrBloomPass';
+import RayMmdSsrPass from '../postfx/rayMmd/RayMmdSsrPass';
+import RayMmdVignettePass from '../postfx/rayMmd/RayMmdVignettePass';
+import RayMmdLensPass from '../postfx/rayMmd/RayMmdLensPass';
+import {
+  RAY_MMD_COLOR_GRADE_NEUTRAL,
+  RAY_MMD_BLOOM_NEUTRAL,
+  RAY_MMD_SSR_NEUTRAL,
+  RAY_MMD_VIGNETTE_NEUTRAL,
+  RAY_MMD_LENS_NEUTRAL,
+} from '../standaloneEffects/presets';
 import ModelDofFocus from './ModelDofFocus';
 import PostFxDirectRenderSync from './PostFxDirectRenderSync';
+import { resolveAoPassParams } from '../renderPipeline2/apply';
+import type { RenderPipeline2State } from '../renderPipeline2/types';
 
 interface ScenePostProcessingProps {
   visualFx: VisualFxSettings;
@@ -26,6 +43,8 @@ interface ScenePostProcessingProps {
   rtxSettings?: RtxSettings;
   pauseRtx?: boolean;
   godRaySunRef?: React.RefObject<THREE.Mesh | null>;
+  /** Render Pipeline 2.0 — AO mode profiles + bloom style. */
+  renderPipeline2?: RenderPipeline2State | null;
 }
 
 export default function ScenePostProcessing({
@@ -35,6 +54,7 @@ export default function ScenePostProcessing({
   rtxModeEnabled = false,
   rtxSettings,
   pauseRtx = false,
+  renderPipeline2 = null,
 }: ScenePostProcessingProps) {
   const glReady = usePostFxGlReady();
   const focusTarget = useMemo(() => new THREE.Vector3(0, 11, 0), []);
@@ -45,9 +65,38 @@ export default function ScenePostProcessing({
   );
 
   const rtxLive = rtxModeEnabled && !pauseRtx;
+  const colorGrade = useMemo(
+    () => getColorGrade(visualFx.colorGrade ?? 'neutral'),
+    [visualFx.colorGrade]
+  );
+  const useCustomLut = Boolean(
+    visualFx.customLutUrl &&
+      visualFx.customLutName &&
+      visualFx.customLutEnabled !== false
+  );
+  const rayGrade = visualFx.rayMmdColorGrade ?? RAY_MMD_COLOR_GRADE_NEUTRAL;
+  const rayBloom = visualFx.rayMmdBloom ?? RAY_MMD_BLOOM_NEUTRAL;
+  const raySsr = visualFx.rayMmdSsr ?? RAY_MMD_SSR_NEUTRAL;
+  const rayVignette = visualFx.rayMmdVignette ?? RAY_MMD_VIGNETTE_NEUTRAL;
+  const rayLens = visualFx.rayMmdLens ?? RAY_MMD_LENS_NEUTRAL;
+  const rayGradeActive =
+    rayGrade.enabled && rayGrade.amount > 0.0001 && !useCustomLut;
+  const rayBloomActive = rayBloom.enabled && rayBloom.amount > 0.0001;
+  const raySsrActive = raySsr.enabled && raySsr.amount > 0.0001;
+  const rayVignetteActive = rayVignette.enabled && rayVignette.amount > 0.0001;
+  const rayLensActive = rayLens.enabled && rayLens.dispersion > 0.0001;
+  const colorGradeActive =
+    !useCustomLut &&
+    !rayGradeActive &&
+    visualFx.colorGrade != null &&
+    visualFx.colorGrade !== 'neutral';
   const bloomParams = useMemo(
     () => resolveBloomParams(visualFx, tuning, rtxSettings, rtxLive),
     [visualFx, tuning, rtxSettings, rtxLive]
+  );
+  const aoProfile = useMemo(
+    () => (renderPipeline2?.enabled ? resolveAoPassParams(renderPipeline2) : null),
+    [renderPipeline2]
   );
 
   const handleFocusPoint = useMemo(
@@ -57,21 +106,41 @@ export default function ScenePostProcessing({
     [focusTarget]
   );
 
-  const showBloom = tuning.bloom && (visualFx.bloomEnabled || rtxLive);
+  const showBloom =
+    tuning.bloom && (visualFx.bloomEnabled || rtxLive) && !rayBloomActive;
   const vignetteOpacity = visualFx.vignetteEnabled
     ? (visualFx.vignetteIntensity ?? 0.4) * 0.85
     : 0;
 
-  const needsNormalPass =
-    (tuning.ssao || rtxLive) && (visualFx.ssaoEnabled === true || rtxLive);
+  const needsNormalPass = false;
+
+  const liteAoRadius = aoProfile?.enabled
+    ? aoProfile.aoRadius
+    : Math.max(2.5, tuning.ssaoRadius * 16);
+  const liteAoIntensity = aoProfile?.enabled ? aoProfile.intensity : tuning.ssaoIntensity;
+  const liteAoHalfRes = aoProfile?.enabled ? aoProfile.halfRes : visualFx.ssaoHalfRes !== false;
+  const liteAoFalloff = aoProfile?.enabled ? aoProfile.distanceFalloff : 0.9;
+  const liteAoQuality = aoProfile?.enabled ? aoProfile.quality : 'medium';
+  const showSsao = aoProfile ? aoProfile.enabled : tuning.ssao;
+
+  const showChromatic = tuning.chromatic && !rayLensActive;
+  const showBuiltInVignette =
+    tuning.vignette && vignetteOpacity > 0.01 && !rayVignetteActive;
 
   const hasPasses =
     rtxLive ||
-    tuning.ssao ||
+    showSsao ||
     tuning.dof ||
     showBloom ||
-    tuning.chromatic ||
-    (tuning.vignette && vignetteOpacity > 0.01) ||
+    rayBloomActive ||
+    raySsrActive ||
+    showChromatic ||
+    colorGradeActive ||
+    rayGradeActive ||
+    useCustomLut ||
+    rayVignetteActive ||
+    rayLensActive ||
+    showBuiltInVignette ||
     tuning.smaa;
 
   const composerActive = tuning.enableComposer && glReady && hasPasses;
@@ -90,22 +159,96 @@ export default function ScenePostProcessing({
       [
         viewportFormat,
         rtxLive ? 'rtx' : 'lite',
-        tuning.ssao ? 'ssao' : '',
+        showSsao ? `ao-${aoProfile?.quality ?? 'm'}` : '',
         tuning.dof ? 'dof' : '',
-        showBloom ? 'bloom' : '',
+        showBloom ? `bloom-${renderPipeline2?.bloom.style ?? 'c'}` : '',
+        rayBloomActive ? 'ray-bloom' : '',
+        raySsrActive ? 'ray-ssr' : '',
+        rayLensActive ? 'ray-lens' : '',
+        rayVignetteActive ? 'ray-vig' : '',
+        colorGradeActive ? 'grade' : '',
+        rayGradeActive ? 'ray-grade' : '',
+        useCustomLut ? `lut-${visualFx.customLutName}` : '',
+        'vq2',
         tuning.smaa ? 'smaa' : '',
-        tuning.vignette && vignetteOpacity > 0.01 ? 'vig' : '',
+        showBuiltInVignette ? 'vig' : '',
       ].join('-'),
     [
       viewportFormat,
       rtxLive,
-      tuning.ssao,
+      showSsao,
+      aoProfile?.quality,
       tuning.dof,
       showBloom,
+      rayBloomActive,
+      raySsrActive,
+      rayLensActive,
+      rayVignetteActive,
+      renderPipeline2?.bloom.style,
+      colorGradeActive,
+      rayGradeActive,
+      useCustomLut,
+      visualFx.customLutName,
       tuning.smaa,
-      tuning.vignette,
-      vignetteOpacity,
+      showBuiltInVignette,
     ]
+  );
+
+  const bloomRadius =
+    renderPipeline2?.bloom.style === 'soft'
+      ? Math.max(bloomParams.radius, 0.85)
+      : renderPipeline2?.bloom.style === 'multi_res'
+        ? Math.max(bloomParams.radius, 0.95)
+        : bloomParams.radius;
+
+  const bloomPass = showBloom ? (
+    <Bloom
+      key="bloom"
+      intensity={bloomParams.intensity}
+      luminanceThreshold={bloomParams.threshold}
+      luminanceSmoothing={renderPipeline2?.bloom.style === 'soft' ? 0.95 : 0.85}
+      mipmapBlur
+      radius={bloomRadius}
+    />
+  ) : null;
+
+  const gradeBrightness =
+    colorGrade.brightness + (visualFx.gradeExposure ?? 0) * 0.08;
+  const gradeContrast =
+    colorGrade.contrast + (visualFx.gradeContrast ?? 0) * 0.1;
+  const gradeSat =
+    colorGrade.saturation + (visualFx.gradeSaturation ?? 0) * 0.15;
+
+  const gradePass = (
+    <>
+      {colorGradeActive && (
+        <>
+          <HueSaturation
+            key="hue"
+            hue={colorGrade.hue + (visualFx.gradeTemperature ?? 0) * 0.04}
+            saturation={gradeSat}
+          />
+          <BrightnessContrast
+            key="bc"
+            brightness={gradeBrightness}
+            contrast={gradeContrast}
+          />
+          {(colorGrade.sepia ?? 0) > 0.01 ? (
+            <Sepia key="sepia" intensity={colorGrade.sepia} />
+          ) : null}
+        </>
+      )}
+      {useCustomLut && visualFx.customLutUrl && visualFx.customLutName ? (
+        <CustomLutPass
+          key="custom-lut"
+          url={visualFx.customLutUrl}
+          fileName={visualFx.customLutName}
+          intensity={visualFx.customLutIntensity ?? 1}
+        />
+      ) : null}
+      {rayGradeActive ? <RayColorGradingPass key="ray-mmd-grade" settings={rayGrade} /> : null}
+      {rayLensActive ? <RayMmdLensPass key="ray-mmd-lens" settings={rayLens} /> : null}
+    </>
   );
 
   return (
@@ -128,20 +271,23 @@ export default function ScenePostProcessing({
             quality={rtxSettings.aoQuality}
             halfRes={rtxSettings.halfResAo}
           />
-        ) : (
-          tuning.ssao && (
-            <SSAO
-              blendFunction={BlendFunction.MULTIPLY}
-              samples={viewportFormat === '9:16' ? 9 : 14}
-              rings={3}
-              radius={tuning.ssaoRadius}
-              intensity={tuning.ssaoIntensity}
-              bias={0.025}
-              luminanceInfluence={0.4}
-              resolutionScale={tuning.ssaoResolutionScale}
-            />
-          )
-        )}
+        ) : showSsao ? (
+          <N8AO
+            aoRadius={liteAoRadius}
+            distanceFalloff={liteAoFalloff}
+            intensity={liteAoIntensity}
+            quality={liteAoQuality}
+            halfRes={liteAoHalfRes}
+            depthAwareUpsampling
+          />
+        ) : null}
+
+        {raySsrActive ? <RayMmdSsrPass key="ray-mmd-ssr" settings={raySsr} /> : null}
+
+        {/* VQ 2.0 / TZ §42: AO → SSR → Bloom → DOF → Grade/LUT → Lens → Vignette → SMAA */}
+        {bloomPass}
+
+        {rayBloomActive ? <RayHdrBloomPass key="ray-mmd-bloom" settings={rayBloom} /> : null}
 
         {tuning.dof && (
           <DepthOfField
@@ -153,17 +299,9 @@ export default function ScenePostProcessing({
           />
         )}
 
-        {showBloom && (
-          <Bloom
-            intensity={bloomParams.intensity}
-            luminanceThreshold={bloomParams.threshold}
-            luminanceSmoothing={0.92}
-            mipmapBlur={false}
-            radius={bloomParams.radius}
-          />
-        )}
+        {gradePass}
 
-        {tuning.chromatic && (
+        {showChromatic && (
           <ChromaticAberration
             offset={chromaticOffset}
             radialModulation
@@ -171,7 +309,11 @@ export default function ScenePostProcessing({
           />
         )}
 
-        {tuning.vignette && vignetteOpacity > 0.01 && (
+        {rayVignetteActive ? (
+          <RayMmdVignettePass key="ray-mmd-vignette" settings={rayVignette} />
+        ) : null}
+
+        {showBuiltInVignette && (
           <Vignette eskil={false} offset={0.2} darkness={vignetteOpacity} />
         )}
 

@@ -3,6 +3,8 @@ import type { AppState, CameraMode, ViewportFormat } from '../../types';
 import type { ModelAnalysisReport } from '../../analyzer/types';
 import type { StudioUiMode } from '../../flow/types';
 import { loadUiMode, saveUiMode } from '../../flow/storage';
+import type { EditorInterfaceId } from '../../uiVersions';
+import { loadEditorInterface, saveEditorInterface } from '../../uiVersions';
 import {
   SceneManager,
   getCameraTemplateForScene,
@@ -75,6 +77,9 @@ export function useProductLayer(opts: UseProductLayerOptions) {
   );
 
   const [uiMode, setUiMode] = useState<StudioUiMode>(() => loadUiMode());
+  const [editorInterface, setEditorInterface] = useState<EditorInterfaceId>(() =>
+    loadEditorInterface()
+  );
   const [qualityMode, setQualityMode] = useState<QualityMode>(() =>
     inferQualityMode(opts.appState)
   );
@@ -127,6 +132,11 @@ export function useProductLayer(opts: UseProductLayerOptions) {
   const handleUiModeChange = useCallback((mode: StudioUiMode) => {
     setUiMode(mode);
     saveUiMode(mode);
+  }, []);
+
+  const handleEditorInterfaceChange = useCallback((id: EditorInterfaceId) => {
+    setEditorInterface(id);
+    saveEditorInterface(id);
   }, []);
 
   const handleQualityModeChange = useCallback((next: QualityMode) => {
@@ -563,6 +573,7 @@ export function useProductLayer(opts: UseProductLayerOptions) {
   return {
     sceneManager,
     uiMode,
+    editorInterface,
     qualityMode,
     shareBusy,
     toast,
@@ -573,6 +584,7 @@ export function useProductLayer(opts: UseProductLayerOptions) {
     sceneGraph,
     lockedObjectIds,
     handleUiModeChange,
+    handleEditorInterfaceChange,
     handleQualityModeChange,
     handleSaveProject,
     handleLoadProject,
@@ -600,10 +612,11 @@ export function useProductLayer(opts: UseProductLayerOptions) {
     applyAssetOptimizations,
       handleForkToEditor,
       frameShortCamera,
-      toggleManualCameraLock,
-      manualCameraLock: Boolean(
-        opts.appState.cameraStudio.manualCameraLock
-      ),
+    toggleManualCameraLock,
+    manualCameraLock: Boolean(
+      opts.appState.cameraStudio.manualCameraLock
+    ),
+    makeShortsBridge,
       handleSceneGraphToggleVisibility,
     handleSceneGraphToggleLock,
     handleSceneGraphCreateGroup,
