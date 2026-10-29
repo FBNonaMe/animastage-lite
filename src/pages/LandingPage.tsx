@@ -38,6 +38,7 @@ import {
   Film,
   Bookmark,
 } from 'lucide-react';
+import GradientASCII from '../components/GradientASCII/GradientASCII';
 import LandingHeroMockup from './landing/LandingHeroMockup';
 import FlowDiagram from './landing/FlowDiagram';
 import DemoGalleryGrid from './landing/DemoGalleryGrid';
@@ -271,7 +272,17 @@ export default function LandingPage({
 
       <main>
         <section id="hero" className="relative pt-10 pb-14 md:pt-16 md:pb-20 overflow-hidden min-h-[min(92vh,880px)] flex items-center">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 w-full">
+          {/* Decorative React Bits ASCII gradient; preserve readability and CTA interactions. */}
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-[600px] -translate-y-1/2 opacity-30">
+            <GradientASCII
+              colors={['#1e3fd8', '#f6f8ff', '#a5d8ff', '#38bdf8']}
+              shape="horizon"
+              characters=" =+xX0S8#@"
+              cellSize={18}
+              density={0.8}
+            />
+          </div>
+          <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 w-full">
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               <div className="text-center lg:text-left">
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 mb-3">
