@@ -1,0 +1,32 @@
+name: Watermark Studio RTX 5070 EXE
+on:
+  push:
+    branches: ['build/watermark-studio-rtx5070']
+    paths: ['watermark-studio/TRIGGER_BUILD']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: watermark-studio
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'x64'
+      - shell: pwsh
+        run: ./setup_windows.ps1
+      - shell: pwsh
+        run: ./build_windows_onefile.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WatermarkStudio_RTX5070_EXE
+          path: watermark-studio/dist/WatermarkStudio.exe
+          if-no-files-found: error
+          compression-level: 0
