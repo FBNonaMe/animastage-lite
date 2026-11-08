@@ -1,0 +1,1 @@
+This is an isolated development branch for building the requested Watermark Studio Windows executable. No changes to main.
